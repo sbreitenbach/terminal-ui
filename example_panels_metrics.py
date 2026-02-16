@@ -26,7 +26,7 @@ import scanner_sim as sim
 
 SPARK_CHARS = "▁▂▃▄▅▆▇█"
 
-def sparkline(values: list[float], width: int = 20) -> Text:
+def sparkline(values: list[float], width: int = 25) -> Text:
     """Render a sparkline from a list of values."""
     if not values:
         return Text("─" * width, style="dim")
@@ -84,10 +84,19 @@ def make_layout() -> Layout:
         Layout(name="feed", ratio=2),
     )
     layout["metrics"].split_column(
-        Layout(name="gauges", ratio=1),
+        Layout(name="gauges", ratio=2),
         Layout(name="sparklines", ratio=1),
     )
     return layout
+
+
+def percentile(values: list[float], p: float) -> float:
+    """Calculate the p-th percentile of values."""
+    if not values:
+        return 0
+    sorted_vals = sorted(values)
+    idx = int(len(sorted_vals) * p / 100)
+    return sorted_vals[min(idx, len(sorted_vals) - 1)]
 
 
 async def run_example(timing: sim.TimingConfig):
@@ -120,11 +129,14 @@ async def run_example(timing: sim.TimingConfig):
                 )
                 layout["header"].update(Panel(header_grid, style="on white", border_style="bright_red"))
 
-                # Gauges panel
+                # Gauges panel with distribution
                 ok = sum(1 for r in results if r.status == sim.EndpointStatus.OK)
                 fail = sum(1 for r in results if r.status in (sim.EndpointStatus.ERROR, sim.EndpointStatus.TIMEOUT))
                 avg = sum(r.response_time_ms for r in results) / len(results) if results else 0
                 max_ms = max((r.response_time_ms for r in results), default=0)
+                latencies = [r.response_time_ms for r in results]
+                p95 = percentile(latencies, 95)
+                p99 = percentile(latencies, 99)
 
                 gauge_table = Table.grid(padding=(0, 1))
                 gauge_table.add_column(width=9)
@@ -133,23 +145,37 @@ async def run_example(timing: sim.TimingConfig):
                 gauge_table.add_row(Text(f"  {ok}/{total}", style="green"), Text(""))
                 gauge_table.add_row(Text("Avg ms", style="dim"), gauge_bar(avg, 2000, 12))
                 gauge_table.add_row(Text(f"  {avg:.0f}", style="blue"), Text(""))
-                gauge_table.add_row(Text("Max ms", style="dim"), gauge_bar(max_ms, 5000, 12))
-                gauge_table.add_row(Text(f"  {max_ms}", style="magenta"), Text(""))
+                gauge_table.add_row(Text("p95 ms", style="dim"), gauge_bar(p95, 3000, 12))
+                gauge_table.add_row(Text(f"  {p95:.0f}", style="cyan"), Text(""))
+                gauge_table.add_row(Text("p99 ms", style="dim"), gauge_bar(p99, 5000, 12))
+                gauge_table.add_row(Text(f"  {p99:.0f}", style="magenta"), Text(""))
+                # Distribution
+                fast = sum(1 for r in results if r.response_time_ms < 200)
+                med = sum(1 for r in results if 200 <= r.response_time_ms < 1000)
+                slow = sum(1 for r in results if r.response_time_ms >= 1000)
+                gauge_table.add_row(Text("", style="dim"), Text(""))
+                gauge_table.add_row(Text("<200ms", style="dim"), gauge_bar(fast, max(len(results), 1), 12))
+                gauge_table.add_row(Text(f"  {fast}", style="green"), Text(""))
+                gauge_table.add_row(Text("200-1s", style="dim"), gauge_bar(med, max(len(results), 1), 12))
+                gauge_table.add_row(Text(f"  {med}", style="yellow"), Text(""))
+                gauge_table.add_row(Text(">1s", style="dim"), gauge_bar(slow, max(len(results), 1), 12))
+                gauge_table.add_row(Text(f"  {slow}", style="red"), Text(""))
                 layout["gauges"].update(Panel(gauge_table, title="[dim]Gauges[/dim]", border_style="bright_blue"))
 
                 # Sparklines panel
                 spark_table = Table.grid(padding=(0, 1))
                 spark_table.add_column(width=9)
                 spark_table.add_column()
-                spark_table.add_row(Text("Latency", style="dim"), sparkline([r.response_time_ms for r in results], 18))
+                spark_table.add_row(Text("Latency", style="dim"), sparkline([r.response_time_ms for r in results], 22))
                 # Per-run averages
-                run_avgs = [h.avg_response_ms for h in history[-18:]]
-                spark_table.add_row(Text("Run Avg", style="dim"), sparkline(run_avgs, 18))
+                run_avgs = [h.avg_response_ms for h in history[-22:]]
+                spark_table.add_row(Text("Run Avg", style="dim"), sparkline(run_avgs, 22))
                 layout["sparklines"].update(Panel(spark_table, title="[dim]Trends[/dim]", border_style="bright_blue"))
 
-                # Feed panel — live results
+                # Feed panel — live results with method column
                 feed_table = Table(box=None, expand=True, show_header=True, header_style="dim")
                 feed_table.add_column("", width=2)
+                feed_table.add_column("Method", width=5)
                 feed_table.add_column("Endpoint")
                 feed_table.add_column("Latency", justify="right")
                 feed_table.add_column("Code", justify="right")
@@ -157,6 +183,7 @@ async def run_example(timing: sim.TimingConfig):
                     ms_style = "green" if r.response_time_ms < 200 else "yellow" if r.response_time_ms < 1000 else "red"
                     feed_table.add_row(
                         sim.status_emoji(r.status),
+                        Text(r.method, style="dim cyan"),
                         Text(r.endpoint, style="dim"),
                         Text(f"{r.response_time_ms}ms", style=ms_style),
                         Text(str(r.status_code) if r.status_code else "---", style="dim"),

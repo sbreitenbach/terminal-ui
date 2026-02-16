@@ -43,6 +43,17 @@ def get_helix_visualization(results, total_expected, rotation_angle, scanning=Tr
         strand1_positions.append((x1, y, z1, i))
         strand2_positions.append((x2, y, z2, i))
     
+    # Draw horizontal connecting bars between strand pairs at same y
+    for i in range(total_expected):
+        x1, y1, z1, _ = strand1_positions[i]
+        x2, y2, z2, _ = strand2_positions[i]
+        if y1 == y2 and 0 <= y1 < HELIX_HEIGHT:
+            lo = min(x1, x2) + 1
+            hi = max(x1, x2)
+            for x in range(lo, hi):
+                if 0 <= x < HELIX_WIDTH and canvas[y1][x] == " ":
+                    canvas[y1][x] = ("[dim]─[/dim]", "dim")
+    
     # Sort by z-depth (back to front) for proper layering
     all_positions = strand1_positions + strand2_positions
     all_positions.sort(key=lambda p: p[2])
@@ -84,6 +95,24 @@ def get_helix_visualization(results, total_expected, rotation_angle, scanning=Tr
                     # Pending endpoint
                     char = "○" if z > 0 else "·"
                     canvas[y][x] = (f"[dim]{char}[/dim]", "dim")
+                
+                # Add endpoint label to the right of rightmost node
+                if i < len(results):
+                    r = results[i]
+                    label = r.endpoint.split('/')[-1][:5]
+                    label_start = max(x1, x2) + 2 if strand_idx == 0 else max(x1, x2) + 2
+                    # Only place label if it fits on the canvas row
+                    if 0 <= y < HELIX_HEIGHT and label_start + len(label) < HELIX_WIDTH:
+                        placed = True
+                        for c_idx, ch in enumerate(label):
+                            cx = label_start + c_idx
+                            if canvas[y][cx] != " ":
+                                placed = False
+                                break
+                        if placed:
+                            for c_idx, ch in enumerate(label):
+                                cx = label_start + c_idx
+                                canvas[y][cx] = (f"[dim]{ch}[/dim]", "dim")
     
     # Convert canvas to text
     lines = []
@@ -117,7 +146,9 @@ async def run_example(timing: sim.TimingConfig):
                     
                     header = Text.assemble(
                         ("🧬 ", "blue"), "HELIX SCANNER ", ("• ", "dim"), f"RUN #{run_number}",
-                        f" | {current}/{total} SEQUENCED"
+                        f" | {current}/{total} SEQUENCED",
+                        ("  OK:", "dim"), (f"{sum(1 for r in results if r.status == sim.EndpointStatus.OK)}", "green"),
+                        ("  ERR:", "dim"), (f"{sum(1 for r in results if r.status in [sim.EndpointStatus.ERROR, sim.EndpointStatus.TIMEOUT])}", "red"),
                     )
                     
                     helix = get_helix_visualization(results, total, rotation, scanning=True)

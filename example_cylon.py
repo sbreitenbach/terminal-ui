@@ -124,18 +124,20 @@ async def run_example(timing: sim.TimingConfig):
                 stats.append("  ·  Avg ", style="dim")
                 stats.append(f"{avg_ms:.0f}ms", style="bold blue")
 
-                # Endpoint results (last 6)
-                results_table = Table(box=None, show_header=False, padding=(0, 1))
-                results_table.add_column(width=2)
-                results_table.add_column(min_width=24)
-                results_table.add_column(justify="right", width=8)
-                results_table.add_column(justify="right", width=4)
-                for r in results[-6:]:
+                # Endpoint results (last 8)
+                results_table = Table(box=None, show_header=True, header_style="dim", padding=(0, 1))
+                results_table.add_column("", width=2)
+                results_table.add_column("Method", width=5)
+                results_table.add_column("Endpoint", min_width=24)
+                results_table.add_column("Latency", justify="right", width=8)
+                results_table.add_column("Code", justify="right", width=4)
+                for r in results[-8:]:
                     emoji = sim.status_emoji(r.status)
                     ep_style = "dim" if r.status == sim.EndpointStatus.OK else "bold"
                     ms_style = "cyan" if r.response_time_ms < 500 else "yellow" if r.response_time_ms < 2000 else "red"
                     results_table.add_row(
                         emoji,
+                        Text(r.method, style="dim cyan"),
                         Text(r.endpoint, style=ep_style),
                         Text(f"{r.response_time_ms}ms", style=ms_style),
                         Text(f"{r.status_code}", style="dim") if r.status_code else Text("---", style="dim"),

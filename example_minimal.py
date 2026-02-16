@@ -9,6 +9,25 @@ from rich.text import Text
 
 import scanner_sim as sim
 
+SPARK_CHARS = "▁▂▃▄▅▆▇█"
+
+def mini_sparkline(values, width=20):
+    """Tiny inline sparkline of response times."""
+    if not values:
+        return Text("─" * width, style="dim")
+    vals = values[-width:]
+    mn, mx = min(vals), max(vals)
+    rng = mx - mn if mx != mn else 1
+    text = Text()
+    for v in vals:
+        idx = int((v - mn) / rng * (len(SPARK_CHARS) - 1))
+        style = "green" if v < 200 else "yellow" if v < 1000 else "red"
+        text.append(SPARK_CHARS[idx], style=style)
+    remaining = width - len(vals)
+    if remaining > 0:
+        text.append("─" * remaining, style="dim")
+    return text
+
 async def run_example(timing: sim.TimingConfig):
     console = Console()
     history = []
@@ -38,25 +57,48 @@ async def run_example(timing: sim.TimingConfig):
                 )
                 progress.add_task("Progress", total=total, completed=current)
                 
-                # Mini stats
+                # Mini sparkline of response times
+                latencies = [r.response_time_ms for r in results]
+                spark_row = Text.assemble(("  Latency: ", "dim"))
+                spark_row.append_text(mini_sparkline(latencies, 25))
+                
+                # Stats with distribution
+                ok_count = sum(1 for r in results if r.status == sim.EndpointStatus.OK)
+                fail_count = sum(1 for r in results if r.status in [sim.EndpointStatus.ERROR, sim.EndpointStatus.TIMEOUT])
+                slow_count = sum(1 for r in results if r.status == sim.EndpointStatus.SLOW)
+                avg_ms = sum(r.response_time_ms for r in results) / len(results) if results else 0
+                
                 stats_table = Table.grid(padding=(0, 2))
                 stats_table.add_row(
-                    f"OK: [green]{sum(1 for r in results if r.status == sim.EndpointStatus.OK)}[/green]",
-                    f"Fail: [red]{sum(1 for r in results if r.status in [sim.EndpointStatus.ERROR, sim.EndpointStatus.TIMEOUT])}[/red]",
-                    f"Avg: [blue]{(sum(r.response_time_ms for r in results)/len(results)):.0f}ms[/blue]" if results else "Avg: --"
+                    f"OK: [green]{ok_count}[/green]",
+                    f"Slow: [yellow]{slow_count}[/yellow]",
+                    f"Fail: [red]{fail_count}[/red]",
+                    f"Avg: [blue]{avg_ms:.0f}ms[/blue]"
                 )
                 
-                # Last 5 results
+                # Response time distribution
+                fast = sum(1 for r in results if r.response_time_ms < 200)
+                med = sum(1 for r in results if 200 <= r.response_time_ms < 1000)
+                slow_ms = sum(1 for r in results if r.response_time_ms >= 1000)
+                dist_text = Text.assemble(
+                    ("  ", ""), ("<200ms ", "dim"), (f"{fast}", "green"),
+                    ("  200-1s ", "dim"), (f"{med}", "yellow"),
+                    ("  >1s ", "dim"), (f"{slow_ms}", "red")
+                )
+                
+                # Last 8 results (increased from 5)
                 results_table = Table(box=None, padding=(0, 1), show_header=False)
-                for r in results[-5:]:
+                for r in results[-8:]:
+                    ms_style = "green" if r.response_time_ms < 200 else "yellow" if r.response_time_ms < 1000 else "red"
                     results_table.add_row(
                         sim.status_emoji(r.status),
+                        Text(r.method, style="dim cyan"),
                         f"[dim]{r.endpoint}[/dim]",
-                        f"[bold]{r.response_time_ms}ms[/bold]"
+                        Text(f"{r.response_time_ms}ms", style=f"bold {ms_style}")
                     )
                 
                 live.update(Panel(
-                    Group(status_text, progress, stats_table, results_table),
+                    Group(status_text, progress, spark_row, stats_table, dist_text, Text(""), results_table),
                     title="[bold blue]API Scanner[/bold blue]",
                     border_style="blue"
                 ))
@@ -81,6 +123,11 @@ async def run_example(timing: sim.TimingConfig):
             # Breathing/Pulse effect for the bar
             pulse = int((sim.time.time() % 2) * 10)
             bar = "━" * pulse + " " * (10 - pulse)
+
+            # Sparkline of all latencies from last run
+            latencies = [r.response_time_ms for r in summary.results]
+            spark_row = Text.assemble(("  Latency: ", "dim"))
+            spark_row.append_text(mini_sparkline(latencies, 25))
             
             # Summary of last run
             last_run_info = Table.grid(padding=(0, 2))
@@ -92,7 +139,7 @@ async def run_example(timing: sim.TimingConfig):
 
             with Live(refresh_per_second=4) as live:
                 live.update(Panel(
-                    Group(status_text, last_run_info),
+                    Group(status_text, spark_row, last_run_info),
                     title="[bold blue]API Scanner[/bold blue]",
                     border_style="dim blue"
                 ))

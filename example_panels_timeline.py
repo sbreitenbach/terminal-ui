@@ -39,7 +39,7 @@ def make_layout() -> Layout:
 
 # ── Timeline Rendering ────────────────────────────────────────────────────────
 
-def render_timeline_scanning(results: list[sim.EndpointResult], current: int, total: int) -> Panel:
+def render_timeline_scanning(results: list[sim.EndpointResult], current: int, total: int, start_time: float) -> Panel:
     """Render a vertical timeline of scan events in progress."""
     table = Table(box=None, show_header=False, padding=(0, 1), expand=True)
     table.add_column("T", width=10, justify="right")  # Time
@@ -48,9 +48,10 @@ def render_timeline_scanning(results: list[sim.EndpointResult], current: int, to
 
     for i, r in enumerate(results[-15:]):
         time_str = sim.format_time(r.timestamp)
+        elapsed = r.timestamp - start_time
         is_last = (i == len(results[-15:]) - 1)
 
-        # Connector
+        # Connector with vertical line continuity
         if is_last:
             connector = Text("◉", style="bold bright_red")
         elif r.status == sim.EndpointStatus.OK:
@@ -60,13 +61,16 @@ def render_timeline_scanning(results: list[sim.EndpointResult], current: int, to
         else:
             connector = Text("●", style="red")
 
-        # Event description
+        # Event description with method, status code, and elapsed
         ms_style = "green" if r.response_time_ms < 200 else "yellow" if r.response_time_ms < 1000 else "red"
         event = Text()
+        event.append(f"{r.method} ", style="dim cyan")
         event.append(f"{r.endpoint} ", style="dim" if not is_last else "bold")
         event.append(f"→ {r.response_time_ms}ms ", style=ms_style)
+        event.append(f"[{r.status_code or '---'}] ", style="dim")
         if r.status != sim.EndpointStatus.OK:
-            event.append(f"[{r.status.value.upper()}]", style="bold red")
+            event.append(f"[{r.status.value.upper()}] ", style="bold red")
+        event.append(f"+{elapsed:.1f}s", style="dim blue")
 
         table.add_row(
             Text(time_str, style="dim blue"),
@@ -74,12 +78,20 @@ def render_timeline_scanning(results: list[sim.EndpointResult], current: int, to
             event,
         )
 
+        # Add connector lines between entries (except after last)
+        if not is_last:
+            table.add_row(
+                Text("", style="dim"),
+                Text("│", style="dim"),
+                Text("", style="dim"),
+            )
+
     # Show remaining
     remaining = total - current
     if remaining > 0:
         table.add_row(
             Text("", style="dim"),
-            Text("┊", style="dim"),
+            Text("┆", style="dim"),
             Text(f"{remaining} more endpoint{'s' if remaining > 1 else ''} queued...", style="dim italic"),
         )
 
@@ -156,7 +168,7 @@ async def run_example(timing: sim.TimingConfig):
                 layout["header"].update(Panel(header_content, border_style="blue", style="on white"))
 
                 # Timeline
-                layout["timeline"].update(render_timeline_scanning(results, current, total))
+                layout["timeline"].update(render_timeline_scanning(results, current, total, start_time))
 
                 # Stats sidebar
                 ok = sum(1 for r in results if r.status == sim.EndpointStatus.OK)

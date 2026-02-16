@@ -90,6 +90,17 @@ def create_spectrum(results, total_expected, pulse_offset=0):
             label_row.append("   ")
     table.add_row(*label_row)
     
+    # Add response time values above label row
+    value_row = []
+    for i in range(num_bars):
+        if i < len(results):
+            r = results[i]
+            ms_style = get_bar_color(r.status)
+            value_row.append(f"[{ms_style}]{r.response_time_ms:>3}[/{ms_style}]")
+        else:
+            value_row.append("[dim]---[/dim]")
+    table.add_row(*value_row)
+    
     return table
 
 async def run_example(timing: sim.TimingConfig):
@@ -122,8 +133,21 @@ async def run_example(timing: sim.TimingConfig):
                 
                 spectrum = create_spectrum(results, total, pulse_counter)
                 
+                # Scale markers
+                scale = Text()
+                scale.append("  0ms", style="dim")
+                scale.append(" " * 15, style="dim")
+                scale.append("1000ms", style="dim")
+                scale.append(" " * 12, style="dim")
+                scale.append("2500ms", style="dim")
+                
+                # Last scan timestamp
+                ts_text = Text.assemble(
+                    ("  Last scan: ", "dim"), (sim.format_time(sim.time.time()), "blue")
+                )
+                
                 live.update(Panel(
-                    Group(header, Text(""), spectrum, Text(""), stats),
+                    Group(header, Text(""), spectrum, Text(""), scale, stats, ts_text),
                     title="[bold]Audio Waveform Monitor[/bold]",
                     border_style="blue",
                     padding=(1, 2)
@@ -154,6 +178,7 @@ async def run_example(timing: sim.TimingConfig):
                     status=r.status,
                     response_time_ms=max(30, r.response_time_ms + breathing_offset * 50),
                     status_code=r.status_code,
+                    method=r.method,
                     timestamp=r.timestamp
                 )
                 breathing_results.append(modified_result)

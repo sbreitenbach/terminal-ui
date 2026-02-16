@@ -54,7 +54,7 @@ def status_bar_scanning(run_number: int, current: int, total: int, elapsed: floa
     grid.add_row(
         Text.assemble(("◉ ", "bright_red"), ("SCAN ", "bold bright_red"), (f"#{run_number}", "dim")),
         bar_text,
-        Text(f"{sim.format_duration(elapsed)} elapsed", style="dim"),
+        Text(f"{sim.format_duration(elapsed)} elapsed  {current/total*100:.0f}% done", style="dim"),
     )
     return Panel(grid, border_style="red", style="on white")
 
@@ -80,12 +80,14 @@ def endpoint_card(result: sim.EndpointResult) -> Panel:
     border = "green" if result.status == sim.EndpointStatus.OK else "yellow" if result.status == sim.EndpointStatus.SLOW else "red"
 
     content = Text()
+    content.append(f"{sim.status_emoji(result.status)} ", style="")
     content.append(f"{result.response_time_ms}ms", style=f"bold {ms_style}")
-    content.append(f"\n{result.status_code or '---'}", style="dim")
+    content.append(f"\n{result.method}", style="dim cyan")
+    content.append(f" {result.status_code or '---'}", style="dim")
 
     # Truncate endpoint to last 2 segments
     ep_short = "/".join(result.endpoint.split("/")[-2:])
-    return Panel(content, title=f"[dim]{ep_short}[/dim]", border_style=border, width=20, height=5)
+    return Panel(content, title=f"[dim]{ep_short}[/dim]", border_style=border, width=22, height=5)
 
 
 async def run_example(timing: sim.TimingConfig):
