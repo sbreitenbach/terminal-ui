@@ -32,44 +32,72 @@ pip install -r requirements.txt
 ### 1. Minimal Elegant (`example_minimal.py`)
 A clean, compact single-panel dashboard with a simple progress bar and live log. Ideal for a minimal footprint.
 
+![Minimal Elegant](screenshots/01_minimal.png)
+
 ### 2. Full Panel Dashboard (`example_panels.py`)
 A multi-pane layout using Rich's Layout system. Includes a header, footer, live scan feed, history sidebar, and status panel.
+
+![Full Panel Dashboard](screenshots/02_panels.png)
 
 ### 3. Retro Cyberpunk (`example_cyber.py`)
 A neon-accented UI with ASCII art and a "Matrix-style" background animation during idle states.
 
+![Retro Cyberpunk](screenshots/03_cyber.png)
+
 ### 4. Cylon Eye Scanner (`example_cylon.py`)
 Features an iconic red "eye" sweep that ping-pongs left-to-right (like a Cylon Raider) during scans, and a slow breathing pulse when idle.
+
+![Cylon Eye Scanner](screenshots/04_cylon.png)
 
 ### 5. Metrics Dashboard (`example_panels_metrics.py`)
 A metrics-dense dashboard featuring sparkline latency charts, color-coded gauge bars, and a clean light layout.
 
+![Metrics Dashboard](screenshots/05_metrics.png)
+
 ### 6. Compact Horizontal (`example_panels_compact.py`)
 A space-efficient 3-column card layout that shows many endpoints simultaneously without vertical scrolling.
+
+![Compact Horizontal](screenshots/06_compact.png)
 
 ### 7. Timeline View (`example_panels_timeline.py`)
 Visualizes the scan as a vertical timeline of connected nodes, showing exactly when each endpoint was hit relative to others.
 
+![Timeline View](screenshots/07_timeline.png)
+
 ### 8. Grid Matrix (`example_grid.py`)
 A dense, high-information grid view where each endpoint is a status cell. Cells highlight and pulse during scanning.
+
+![Grid Matrix](screenshots/08_grid.png)
 
 ### 9. Deep Space Radar (`example_radar.py`)
 A circular radar sweep animation that "pings" endpoints as the beam rotates. Features a novel ASCII-art style sonar.
 
+![Deep Space Radar](screenshots/09_radar.png)
+
 ### 10. Tactical HUD (`example_hud.py`)
 A futuristic Starship-style Head-Up Display with bracketed status indicators, double-line borders, and cyan tactical accents.
+
+![Tactical HUD](screenshots/10_hud.png)
 
 ### 11. Wave Spectrum Analyzer (`example_wave.py`)
 Audio equalizer-style visualization with animated vertical bars representing response times. Bars pulse and change height based on endpoint status.
 
+![Wave Spectrum Analyzer](screenshots/11_wave.png)
+
 ### 12. Metro/Subway Map (`example_metro.py`)
 Transit network visualization with API endpoints as stations on colored metro lines. An animated train travels between stations during scanning.
+
+![Metro/Subway Map](screenshots/12_metro.png)
 
 ### 13. DNA Helix Scanner (`example_helix.py`)
 Rotating double-helix visualization with endpoints distributed along spiral strands. Features 3D perspective with depth-based rendering.
 
+![DNA Helix Scanner](screenshots/13_helix.png)
+
 ### 14. Circuit Board Tracer (`example_circuit.py`)
 Electronics-themed display showing endpoints as IC chips on a circuit board with signal traces and blinking power LEDs.
+
+![Circuit Board Tracer](screenshots/14_circuit.png)
 
 ## ⚙️ Configuration
 
