@@ -1,6 +1,6 @@
 # API Scanner Terminal UI Prototypes
 
-A collection of 7 distinct terminal user interface (TUI) prototypes for a recurring API scanner. These examples demonstrate different ways to visualize active scanning states and passive waiting states in the terminal using Python's `rich` library.
+A collection of 14 distinct terminal user interface (TUI) prototypes for a recurring API scanner. These examples demonstrate different ways to visualize active scanning states and passive waiting states in the terminal using Python's `rich` library.
 
 ## 🚀 Features
 
@@ -58,6 +58,18 @@ A circular radar sweep animation that "pings" endpoints as the beam rotates. Fea
 
 ### 10. Tactical HUD (`example_hud.py`)
 A futuristic Starship-style Head-Up Display with bracketed status indicators, double-line borders, and cyan tactical accents.
+
+### 11. Wave Spectrum Analyzer (`example_wave.py`)
+Audio equalizer-style visualization with animated vertical bars representing response times. Bars pulse and change height based on endpoint status.
+
+### 12. Metro/Subway Map (`example_metro.py`)
+Transit network visualization with API endpoints as stations on colored metro lines. An animated train travels between stations during scanning.
+
+### 13. DNA Helix Scanner (`example_helix.py`)
+Rotating double-helix visualization with endpoints distributed along spiral strands. Features 3D perspective with depth-based rendering.
+
+### 14. Circuit Board Tracer (`example_circuit.py`)
+Electronics-themed display showing endpoints as IC chips on a circuit board with signal traces and blinking power LEDs.
 
 ## ⚙️ Configuration
 
