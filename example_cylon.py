@@ -106,7 +106,7 @@ async def run_example(timing: sim.TimingConfig):
                 header_text = Text()
                 header_text.append("  ◉ SCANNING", style="bold bright_red")
                 header_text.append(f"  Run #{run_number}", style="dim")
-                header_text.append(f"  [{current}/{total}]", style="bold white")
+                header_text.append(f"  [{current}/{total}]", style="bold black")
 
                 # Stats row
                 ok = sum(1 for r in results if r.status == sim.EndpointStatus.OK)
@@ -122,7 +122,7 @@ async def run_example(timing: sim.TimingConfig):
                 stats.append("  ·  Slow ", style="dim")
                 stats.append(f"{slow}", style="bold yellow" if slow > 0 else "dim")
                 stats.append("  ·  Avg ", style="dim")
-                stats.append(f"{avg_ms:.0f}ms", style="bold cyan")
+                stats.append(f"{avg_ms:.0f}ms", style="bold blue")
 
                 # Endpoint results (last 6)
                 results_table = Table(box=None, show_header=False, padding=(0, 1))
@@ -179,7 +179,7 @@ async def run_example(timing: sim.TimingConfig):
                 header_text = Text()
                 header_text.append("  ● IDLE", style="dim green")
                 header_text.append(f"  Next scan in ", style="dim")
-                header_text.append(sim.format_duration(remaining), style="bold white")
+                header_text.append(sim.format_duration(remaining), style="bold black")
 
                 # Last scan summary
                 result_color = "green" if summary.passed else "red"

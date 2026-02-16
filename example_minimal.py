@@ -43,7 +43,7 @@ async def run_example(timing: sim.TimingConfig):
                 stats_table.add_row(
                     f"OK: [green]{sum(1 for r in results if r.status == sim.EndpointStatus.OK)}[/green]",
                     f"Fail: [red]{sum(1 for r in results if r.status in [sim.EndpointStatus.ERROR, sim.EndpointStatus.TIMEOUT])}[/red]",
-                    f"Avg: [cyan]{(sum(r.response_time_ms for r in results)/len(results)):.0f}ms[/cyan]" if results else "Avg: --"
+                    f"Avg: [blue]{(sum(r.response_time_ms for r in results)/len(results)):.0f}ms[/blue]" if results else "Avg: --"
                 )
                 
                 # Last 5 results

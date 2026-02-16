@@ -69,7 +69,7 @@ def render_timeline_scanning(results: list[sim.EndpointResult], current: int, to
             event.append(f"[{r.status.value.upper()}]", style="bold red")
 
         table.add_row(
-            Text(time_str, style="dim cyan"),
+            Text(time_str, style="dim blue"),
             connector,
             event,
         )
@@ -83,7 +83,7 @@ def render_timeline_scanning(results: list[sim.EndpointResult], current: int, to
             Text(f"{remaining} more endpoint{'s' if remaining > 1 else ''} queued...", style="dim italic"),
         )
 
-    return Panel(table, title="[bold cyan]Timeline[/bold cyan]", border_style="cyan")
+    return Panel(table, title="[bold blue]Timeline[/bold blue]", border_style="blue")
 
 
 def render_timeline_history(history: list[sim.ScanSummary]) -> Panel:
@@ -110,12 +110,12 @@ def render_timeline_history(history: list[sim.ScanSummary]) -> Panel:
                 event.append(f" · {h.total_timeouts}t/o", style="magenta")
 
             table.add_row(
-                Text(time_str, style="dim cyan"),
+                Text(time_str, style="dim blue"),
                 connector,
                 event,
             )
 
-    return Panel(table, title="[bold cyan]Timeline[/bold cyan]", border_style="dim cyan")
+    return Panel(table, title="[bold blue]Timeline[/bold blue]", border_style="dim blue")
 
 
 # ── Main Loop ─────────────────────────────────────────────────────────────────
@@ -141,19 +141,19 @@ async def run_example(timing: sim.TimingConfig):
                 bar_width = 30
                 filled = int(current / total * bar_width)
                 bar = Text()
-                bar.append("█" * filled, style="bright_cyan")
-                bar.append("░" * (bar_width - filled), style="bright_black")
+                bar.append("█" * filled, style="bright_blue")
+                bar.append("░" * (bar_width - filled), style="white")
 
                 header_content = Group(
                     Text.assemble(
-                        ("  ◉ SCANNING", "bold bright_cyan"),
+                        ("  ◉ SCANNING", "bold bright_blue"),
                         (f"  Run #{run_number}", "dim"),
                         (f"  ·  {current}/{total}", "bold"),
                         (f"  ·  {sim.format_duration(elapsed)} elapsed", "dim"),
                     ),
                     Align.center(Text.assemble(("  ", ""), bar, (f"  {pct:.0f}%", "bold"))),
                 )
-                layout["header"].update(Panel(header_content, border_style="cyan", style="on grey7"))
+                layout["header"].update(Panel(header_content, border_style="blue", style="on white"))
 
                 # Timeline
                 layout["timeline"].update(render_timeline_scanning(results, current, total))
@@ -170,8 +170,8 @@ async def run_example(timing: sim.TimingConfig):
                 stats_table.add_row(Text("OK", style="dim"), Text(str(ok), style="bold green"))
                 stats_table.add_row(Text("Slow", style="dim"), Text(str(slow), style="bold yellow"))
                 stats_table.add_row(Text("Errors", style="dim"), Text(str(fail), style="bold red"))
-                stats_table.add_row(Text("Avg ms", style="dim"), Text(f"{avg:.0f}", style="bold cyan"))
-                layout["stats"].update(Panel(stats_table, title="[dim]Live Stats[/dim]", border_style="grey30"))
+                stats_table.add_row(Text("Avg ms", style="dim"), Text(f"{avg:.0f}", style="bold blue"))
+                layout["stats"].update(Panel(stats_table, title="[dim]Live Stats[/dim]", border_style="bright_blue"))
 
                 # Details — latest endpoint
                 detail_table = Table.grid(padding=(0, 1))
@@ -179,9 +179,9 @@ async def run_example(timing: sim.TimingConfig):
                 detail_table.add_column()
                 detail_table.add_row(Text("Endpoint", style="dim"), Text(result.endpoint, style="bold"))
                 detail_table.add_row(Text("Status", style="dim"), Text(result.status.value.upper(), style="bold green" if result.status == sim.EndpointStatus.OK else "bold red"))
-                detail_table.add_row(Text("Latency", style="dim"), Text(f"{result.response_time_ms}ms", style="cyan"))
+                detail_table.add_row(Text("Latency", style="dim"), Text(f"{result.response_time_ms}ms", style="blue"))
                 detail_table.add_row(Text("Code", style="dim"), Text(str(result.status_code) if result.status_code else "N/A", style="dim"))
-                layout["details"].update(Panel(detail_table, title="[dim]Latest[/dim]", border_style="grey30"))
+                layout["details"].update(Panel(detail_table, title="[dim]Latest[/dim]", border_style="bright_blue"))
 
         # Scan complete
         summary = sim.ScanSummary(run_number, results, start_time, sim.time.time())
@@ -204,11 +204,11 @@ async def run_example(timing: sim.TimingConfig):
                     Text.assemble(
                         ("  ● IDLE", "dim green"),
                         (f"  ·  Next scan in ", "dim"),
-                        (sim.format_duration(remaining), "bold white"),
+                        (sim.format_duration(remaining), "bold black"),
                     ),
                     Text(f"  Completed {len(history)} scan{'s' if len(history) != 1 else ''}", style="dim"),
                 )
-                layout["header"].update(Panel(header_content, border_style="dim green", style="on grey7"))
+                layout["header"].update(Panel(header_content, border_style="dim green", style="on white"))
 
                 # Timeline — history
                 layout["timeline"].update(render_timeline_history(history))

@@ -1,7 +1,7 @@
 """
-example_panels_dark.py — Dark Metrics Panel Dashboard
+example_panels_metrics.py — Metrics Panel Dashboard (Solarized Light)
 
-A dark-themed, metrics-heavy panel dashboard with:
+A data-heavy metrics dashboard optimized for light themes:
 - Color-coded response time gauges
 - Sparkline-style mini charts for latency trends
 - Dense stats layout optimized for monitoring
@@ -66,7 +66,7 @@ def gauge_bar(value: float, max_val: float, width: int = 15) -> Text:
     else:
         style = "red"
     text.append("█" * filled, style=style)
-    text.append("░" * (width - filled), style="bright_black")
+    text.append("░" * (width - filled), style="white")
     return text
 
 
@@ -115,10 +115,10 @@ async def run_example(timing: sim.TimingConfig):
                 header_grid.add_column(justify="right")
                 header_grid.add_row(
                     Text.assemble(("◉ ", "bright_red"), ("SCANNING", "bold bright_red")),
-                    Text(f"Run #{run_number}  ·  {current}/{total} endpoints", style="white"),
+                    Text(f"Run #{run_number}  ·  {current}/{total} endpoints", style="black"),
                     Text(f"Elapsed: {sim.format_duration(elapsed)}", style="dim"),
                 )
-                layout["header"].update(Panel(header_grid, style="on grey7", border_style="bright_red"))
+                layout["header"].update(Panel(header_grid, style="on white", border_style="bright_red"))
 
                 # Gauges panel
                 ok = sum(1 for r in results if r.status == sim.EndpointStatus.OK)
@@ -132,10 +132,10 @@ async def run_example(timing: sim.TimingConfig):
                 gauge_table.add_row(Text("Health", style="dim"), gauge_bar(ok, total, 12))
                 gauge_table.add_row(Text(f"  {ok}/{total}", style="green"), Text(""))
                 gauge_table.add_row(Text("Avg ms", style="dim"), gauge_bar(avg, 2000, 12))
-                gauge_table.add_row(Text(f"  {avg:.0f}", style="cyan"), Text(""))
+                gauge_table.add_row(Text(f"  {avg:.0f}", style="blue"), Text(""))
                 gauge_table.add_row(Text("Max ms", style="dim"), gauge_bar(max_ms, 5000, 12))
-                gauge_table.add_row(Text(f"  {max_ms}", style="yellow"), Text(""))
-                layout["gauges"].update(Panel(gauge_table, title="[dim]Gauges[/dim]", border_style="grey30"))
+                gauge_table.add_row(Text(f"  {max_ms}", style="magenta"), Text(""))
+                layout["gauges"].update(Panel(gauge_table, title="[dim]Gauges[/dim]", border_style="bright_blue"))
 
                 # Sparklines panel
                 spark_table = Table.grid(padding=(0, 1))
@@ -145,7 +145,7 @@ async def run_example(timing: sim.TimingConfig):
                 # Per-run averages
                 run_avgs = [h.avg_response_ms for h in history[-18:]]
                 spark_table.add_row(Text("Run Avg", style="dim"), sparkline(run_avgs, 18))
-                layout["sparklines"].update(Panel(spark_table, title="[dim]Trends[/dim]", border_style="grey30"))
+                layout["sparklines"].update(Panel(spark_table, title="[dim]Trends[/dim]", border_style="bright_blue"))
 
                 # Feed panel — live results
                 feed_table = Table(box=None, expand=True, show_header=True, header_style="dim")
@@ -161,17 +161,17 @@ async def run_example(timing: sim.TimingConfig):
                         Text(f"{r.response_time_ms}ms", style=ms_style),
                         Text(str(r.status_code) if r.status_code else "---", style="dim"),
                     )
-                layout["feed"].update(Panel(feed_table, title="[dim]Live Feed[/dim]", border_style="grey30"))
+                layout["feed"].update(Panel(feed_table, title="[dim]Live Feed[/dim]", border_style="bright_blue"))
 
                 # Footer — progress
                 pct = int(current / total * 30)
                 bar = Text()
                 bar.append("█" * pct, style="bright_red")
-                bar.append("░" * (30 - pct), style="bright_black")
+                bar.append("░" * (30 - pct), style="white")
                 bar.append(f"  {current/total*100:.0f}%", style="bold")
                 layout["footer"].update(Panel(
                     Align.center(bar),
-                    border_style="grey30",
+                    border_style="bright_blue",
                 ))
 
         # Scan complete
@@ -198,9 +198,9 @@ async def run_example(timing: sim.TimingConfig):
                 header_grid.add_row(
                     Text.assemble(("● ", "green"), ("IDLE", "dim green")),
                     Text(f"Scans completed: {len(history)}", style="dim"),
-                    Text(f"Next in: {sim.format_duration(remaining)}", style="bold white"),
+                    Text(f"Next in: {sim.format_duration(remaining)}", style="bold black"),
                 )
-                layout["header"].update(Panel(header_grid, style="on grey7", border_style="dim green"))
+                layout["header"].update(Panel(header_grid, style="on white", border_style="dim green"))
 
                 # Gauges — overall stats
                 total_ok = sum(h.total_ok for h in history)

@@ -37,10 +37,10 @@ class StatsHeader:
         grid.add_column(justify="right")
         grid.add_row(
             f"[bold blue]API SCANNER DASHBOARD[/bold blue]",
-            f"Run: [white]#{self.run_number}[/white]",
+            f"Run: [black]#{self.run_number}[/black]",
             f"Started: [dim]{sim.format_time(self.start_time)}[/dim]"
         )
-        return Panel(grid, style="white on blue")
+        return Panel(grid, style="black on white", border_style="blue")
 
 async def run_example(timing: sim.TimingConfig):
     layout = make_layout()
@@ -68,9 +68,9 @@ async def run_example(timing: sim.TimingConfig):
                     feed_table.add_row(
                         sim.status_emoji(r.status),
                         f"[dim]{r.endpoint}[/dim]",
-                        f"[bold cyan]{r.response_time_ms}ms[/bold cyan]"
+                        f"[bold blue]{r.response_time_ms}ms[/bold blue]"
                     )
-                layout["center"].update(Panel(feed_table, border_style="cyan"))
+                layout["center"].update(Panel(feed_table, border_style="blue"))
 
                 # Left: Status & Radar (Simulation)
                 radar_frames = ["|", "/", "-", "\\"]
@@ -110,7 +110,7 @@ async def run_example(timing: sim.TimingConfig):
                 Text.assemble(
                     ("● ", "green"), "IDLE ", ("Next scan in: ", "dim"), (sim.format_duration(remaining), "bold")
                 ),
-                style="white on black", border_style="dim white"
+                style="black on white", border_style="dim blue"
             ))
 
             # Left: Last Run Results

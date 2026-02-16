@@ -71,7 +71,7 @@ async def run_example(timing: sim.TimingConfig):
                 # Progress "Bar" - Cyber style
                 pct = int((current / total) * 20)
                 bar = "█" * pct + " " * (20 - pct)
-                progress_text = Align.center(Text(f"LOAD: [{bar}] {int(current/total*100)}%", style="cyan"))
+                progress_text = Align.center(Text(f"LOAD: [{bar}] {int(current/total*100)}%", style="blue"))
 
                 # Live Results
                 results_table = Table(box=None, expand=True, show_header=False)
@@ -79,8 +79,8 @@ async def run_example(timing: sim.TimingConfig):
                     status_text = Text("OK", style="bold green") if r.status == sim.EndpointStatus.OK else Text(r.status.value.upper(), style="bold red")
                     results_table.add_row(
                         Text(">>", style="dim green"),
-                        Text(r.endpoint, style="cyan"),
-                        Text(f"{r.response_time_ms:03d}ms", style="bold white"),
+                        Text(r.endpoint, style="blue"),
+                        Text(f"{r.response_time_ms:03d}ms", style="bold black"),
                         status_text
                     )
                 
@@ -112,7 +112,7 @@ async def run_example(timing: sim.TimingConfig):
             # Last Results Summary
             summary_text = Align.center(Text.assemble(
                 ("LAST SCAN: ", "dim green"),
-                (f"{summary.avg_response_ms:.0f}ms", "bold white"),
+                (f"{summary.avg_response_ms:.0f}ms", "bold black"),
                 ("  STATUS: ", "dim green"),
                 ("STABLE" if summary.passed else "BREACHED", "bold green" if summary.passed else "bold red")
             ))

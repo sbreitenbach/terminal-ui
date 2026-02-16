@@ -56,7 +56,7 @@ def status_bar_scanning(run_number: int, current: int, total: int, elapsed: floa
         bar_text,
         Text(f"{sim.format_duration(elapsed)} elapsed", style="dim"),
     )
-    return Panel(grid, border_style="red", style="on grey3")
+    return Panel(grid, border_style="red", style="on white")
 
 
 def status_bar_idle(remaining: float, total_runs: int) -> Panel:
@@ -71,7 +71,7 @@ def status_bar_idle(remaining: float, total_runs: int) -> Panel:
         Text(f"Next scan in {sim.format_duration(remaining)}", style="bold"),
         Text(f"{total_runs} runs completed", style="dim"),
     )
-    return Panel(grid, border_style="dim green", style="on grey3")
+    return Panel(grid, border_style="dim green", style="on white")
 
 
 def endpoint_card(result: sim.EndpointResult) -> Panel:
@@ -145,8 +145,8 @@ async def run_example(timing: sim.TimingConfig):
                 sum_table.add_row("OK:", Text(str(summary.total_ok), style="green"))
                 sum_table.add_row("Errors:", Text(str(summary.total_errors), style="red"))
                 sum_table.add_row("Timeouts:", Text(str(summary.total_timeouts), style="magenta"))
-                sum_table.add_row("Avg:", Text(f"{summary.avg_response_ms:.0f}ms", style="cyan"))
-                layout["col1"].update(Panel(sum_table, title="[dim]Last Scan[/dim]", border_style="grey30"))
+                sum_table.add_row("Avg:", Text(f"{summary.avg_response_ms:.0f}ms", style="blue"))
+                layout["col1"].update(Panel(sum_table, title="[dim]Last Scan[/dim]", border_style="bright_blue"))
 
                 # Col 2: History
                 hist_table = Table(box=None, show_header=True, header_style="dim")
@@ -159,7 +159,7 @@ async def run_example(timing: sim.TimingConfig):
                         Text("✓", style="green") if h.passed else Text("✗", style="red"),
                         f"{h.avg_response_ms:.0f}ms",
                     )
-                layout["col2"].update(Panel(hist_table, title="[dim]History[/dim]", border_style="grey30"))
+                layout["col2"].update(Panel(hist_table, title="[dim]History[/dim]", border_style="bright_blue"))
 
                 # Col 3: Uptime stats
                 total_scanned = sum(len(h.results) for h in history)
@@ -173,8 +173,8 @@ async def run_example(timing: sim.TimingConfig):
                 stats_table.add_row("Total Scans:", Text(str(len(history)), style="bold"))
                 stats_table.add_row("Endpoints:", Text(str(total_scanned), style="bold"))
                 stats_table.add_row("Pass Rate:", Text(f"{pass_rate:.1f}%", style="green" if pass_rate > 95 else "yellow"))
-                stats_table.add_row("Overall Avg:", Text(f"{overall_avg:.0f}ms", style="cyan"))
-                layout["col3"].update(Panel(stats_table, title="[dim]Overall[/dim]", border_style="grey30"))
+                stats_table.add_row("Overall Avg:", Text(f"{overall_avg:.0f}ms", style="blue"))
+                layout["col3"].update(Panel(stats_table, title="[dim]Overall[/dim]", border_style="bright_blue"))
 
                 await asyncio.sleep(0.25)
 

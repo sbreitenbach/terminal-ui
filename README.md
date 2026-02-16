@@ -4,6 +4,7 @@ A collection of 7 distinct terminal user interface (TUI) prototypes for a recurr
 
 ## 🚀 Features
 
+- **Solarized Light Optimized**: All themes are tuned for light backgrounds (cream/white), with dark text and high-contrast accents.
 - **Active/Passive States**: Distinct visual indicators for when the tool is scanning vs. waiting.
 - **Mac Notifications**: Native macOS notifications (via `osascript`) when a scan completes or finds issues.
 - **Realistic Simulation**: A shared `scanner_sim.py` module provides fake API endpoint results with jitter, response times, and random failures.
@@ -40,8 +41,8 @@ A neon-accented UI with ASCII art and a "Matrix-style" background animation duri
 ### 4. Cylon Eye Scanner (`example_cylon.py`)
 Features an iconic red "eye" sweep that ping-pongs left-to-right (like a Cylon Raider) during scans, and a slow breathing pulse when idle.
 
-### 5. Dark Metrics (`example_panels_dark.py`)
-A metrics-dense dashboard featuring sparkline latency charts, color-coded gauge bars, and a sleek dark-grey palette.
+### 5. Metrics Dashboard (`example_panels_metrics.py`)
+A metrics-dense dashboard featuring sparkline latency charts, color-coded gauge bars, and a clean light layout.
 
 ### 6. Compact Horizontal (`example_panels_compact.py`)
 A space-efficient 3-column card layout that shows many endpoints simultaneously without vertical scrolling.
