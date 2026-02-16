@@ -50,6 +50,15 @@ A space-efficient 3-column card layout that shows many endpoints simultaneously 
 ### 7. Timeline View (`example_panels_timeline.py`)
 Visualizes the scan as a vertical timeline of connected nodes, showing exactly when each endpoint was hit relative to others.
 
+### 8. Grid Matrix (`example_grid.py`)
+A dense, high-information grid view where each endpoint is a status cell. Cells highlight and pulse during scanning.
+
+### 9. Deep Space Radar (`example_radar.py`)
+A circular radar sweep animation that "pings" endpoints as the beam rotates. Features a novel ASCII-art style sonar.
+
+### 10. Tactical HUD (`example_hud.py`)
+A futuristic Starship-style Head-Up Display with bracketed status indicators, double-line borders, and cyan tactical accents.
+
 ## ⚙️ Configuration
 
 All scripts support the following command-line argument:
