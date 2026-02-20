@@ -127,9 +127,10 @@ async def run_example(timing: sim.TimingConfig):
                 power_led = LED_ON if led_state else LED_OFF
                 led_state = not led_state
                 power_status = Text.assemble(
-                    "[bold]POWER:[/bold] ",
+                    ("POWER: ", "bold"),
                     (f"{power_led}", "green"),
-                    "  [bold]VOLTAGE:[/bold] 5.0V  [bold]CURRENT:[/bold] ",
+                    ("  VOLTAGE: ", "bold"), "5.0V",
+                    ("  CURRENT: ", "bold"),
                     (f"{50 + random.randint(-5, 5)}mA", "cyan")
                 )
                 
@@ -178,10 +179,10 @@ async def run_example(timing: sim.TimingConfig):
             )
             
             power_status = Text.assemble(
-                "[bold]POWER:[/bold] ",
+                ("POWER: ", "bold"),
                 (f"{led_blink}", "green"),
-                "  [bold]STATUS:[/bold] ",
-                ("[green]ALL SYSTEMS NOMINAL[/green]" if summary.passed else "[red]⚠️  FAULTS DETECTED[/red]")
+                ("  STATUS: ", "bold"),
+                (Text.from_markup("[green]ALL SYSTEMS NOMINAL[/green]" if summary.passed else "[red]⚠️  FAULTS DETECTED[/red]"))
             )
             
             circuit = create_circuit_board(results, len(results), -1)

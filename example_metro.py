@@ -46,7 +46,7 @@ def create_metro_map(results, total_expected, train_position=-1):
         indices = lc["indices"]
         
         # Line label
-        lines_group.append(Text(f"[bold {line_color}]{lc['name']}[/bold {line_color}]"))
+        lines_group.append(Text.from_markup(f"[bold {line_color}]{lc['name']}[/bold {line_color}]"))
         
         line_text = Text()
         for pos, idx in enumerate(indices):
