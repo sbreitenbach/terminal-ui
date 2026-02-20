@@ -102,78 +102,67 @@ def create_metro_map(results, total_expected, train_position=-1):
 
 async def run_example(timing: sim.TimingConfig):
     console = Console()
-    run_number = 1
-    
-    while True:
-        results = []
-        start_time = sim.time.time()
+
+    def scanning_cb(run_number, current, total, result, results, start_time, history):
+        header = Text.assemble(
+            ("🚇 ", "blue"), "METRO TRANSIT MONITOR ", ("• ", "dim"), f"RUN #{run_number}",
+            f" | {current}/{total} STATIONS"
+        )
         
-        with Live(refresh_per_second=10) as live:
-            async for current, total, result in sim.simulate_scan(timing, run_number):
-                results.append(result)
-                
-                header = Text.assemble(
-                    ("🚇 ", "blue"), "METRO TRANSIT MONITOR ", ("• ", "dim"), f"RUN #{run_number}",
-                    f" | {current}/{total} STATIONS"
-                )
-                
-                # Stats panel
-                ok = sum(1 for r in results if r.status == sim.EndpointStatus.OK)
-                slow = sum(1 for r in results if r.status == sim.EndpointStatus.SLOW)
-                fail = sum(1 for r in results if r.status in [sim.EndpointStatus.ERROR, sim.EndpointStatus.TIMEOUT])
-                avg = sum(r.response_time_ms for r in results) / len(results) if results else 0
-                stats = Table.grid(padding=(0, 3))
-                stats.add_row(
-                    f"[green]On-Time: {ok}[/green]",
-                    f"[yellow]Delayed: {slow}[/yellow]",
-                    f"[red]Failed: {fail}[/red]",
-                    f"[blue]Avg: {avg:.0f}ms[/blue]"
-                )
-                
-                metro_map = create_metro_map(results, total, current - 1)
-                
-                live.update(Panel(
-                    Group(header, Text(""), metro_map, Text(""), stats),
-                    title="[bold]API Transit Network[/bold]",
-                    border_style="blue",
-                    padding=(1, 2)
-                ))
+        # Stats panel
+        ok = sum(1 for r in results if r.status == sim.EndpointStatus.OK)
+        slow = sum(1 for r in results if r.status == sim.EndpointStatus.SLOW)
+        fail = sum(1 for r in results if r.status in [sim.EndpointStatus.ERROR, sim.EndpointStatus.TIMEOUT])
+        avg = sum(r.response_time_ms for r in results) / len(results) if results else 0
+        stats = Table.grid(padding=(0, 3))
+        stats.add_row(
+            f"[green]On-Time: {ok}[/green]",
+            f"[yellow]Delayed: {slow}[/yellow]",
+            f"[red]Failed: {fail}[/red]",
+            f"[blue]Avg: {avg:.0f}ms[/blue]"
+        )
         
-        summary = sim.ScanSummary(run_number, results, start_time, sim.time.time())
-        sim.notify_scan_complete(summary)
-        run_number += 1
+        metro_map = create_metro_map(results, total, current - 1)
         
-        # Idle State
-        wait_start = sim.time.time()
-        while sim.time.time() - wait_start < timing.wait_duration_seconds:
-            remaining = timing.wait_duration_seconds - (sim.time.time() - wait_start)
-            
-            header = Text.assemble(
-                ("● ", "green"), "SERVICE NORMAL ", ("• ", "dim"), f"NEXT DEPARTURE: {sim.format_duration(remaining)}"
-            )
-            
-            # Show static map without train
-            metro_map = create_metro_map(results, len(results), -1)
-            
-            # Service summary
-            service_info = Table.grid(padding=(0, 2))
-            service_status = "[green]ALL LINES OPERATIONAL[/green]" if summary.passed else "[red]⚠️  SERVICE DISRUPTION[/red]"
-            service_info.add_row(
-                service_status,
-                f"Last check: {sim.format_time(summary.end_time)}",
-                f"Avg response: {summary.avg_response_ms:.0f}ms"
-            )
-            
-            with Live(refresh_per_second=2) as live:
-                live.update(Panel(
-                    Group(header, Text(""), metro_map, Text(""), service_info),
-                    title="[bold]API Transit Network (Standby)[/bold]",
-                    border_style="dim green",
-                    padding=(1, 2)
-                ))
-                await asyncio.sleep(0.5)
-                if sim.time.time() - wait_start >= timing.wait_duration_seconds:
-                    break
+        return Panel(
+            Group(header, Text(""), metro_map, Text(""), stats),
+            title="[bold]API Transit Network[/bold]",
+            border_style="blue",
+            padding=(1, 2)
+        )
+
+    def idle_cb(remaining, summary, history, wait_start):
+        header = Text.assemble(
+            ("● ", "green"), "SERVICE NORMAL ", ("• ", "dim"), f"NEXT DEPARTURE: {sim.format_duration(remaining)}"
+        )
+        
+        # Show static map without train
+        metro_map = create_metro_map(summary.results, len(summary.results), -1)
+        
+        # Service summary
+        service_info = Table.grid(padding=(0, 2))
+        service_status = "[green]ALL LINES OPERATIONAL[/green]" if summary.passed else "[red]⚠️  SERVICE DISRUPTION[/red]"
+        service_info.add_row(
+            service_status,
+            f"Last check: {sim.format_time(summary.end_time)}",
+            f"Avg response: {summary.avg_response_ms:.0f}ms"
+        )
+        
+        return Panel(
+            Group(header, Text(""), metro_map, Text(""), service_info),
+            title="[bold]API Transit Network (Standby)[/bold]",
+            border_style="dim green",
+            padding=(1, 2)
+        )
+
+    await sim.run_app(
+        timing,
+        scanning_callback=scanning_cb,
+        idle_callback=idle_cb,
+        console=console,
+        scan_fps=10,
+        idle_fps=2
+    )
 
 if __name__ == "__main__":
     try:

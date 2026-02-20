@@ -107,105 +107,94 @@ def create_circuit_board(results, total_expected, signal_position=-1):
 
 async def run_example(timing: sim.TimingConfig):
     console = Console()
-    run_number = 1
-    led_state = True
+    led_state = [True]
     
-    while True:
-        results = []
-        start_time = sim.time.time()
+    def scanning_cb(run_number, current, total, result, results, start_time, history):
+        header = Text.assemble(
+            ("⚡ ", "blue"), "CIRCUIT BOARD TRACER ", ("• ", "dim"), f"RUN #{run_number}",
+            f" | {current}/{total} COMPONENTS"
+        )
         
-        with Live(refresh_per_second=12) as live:
-            async for current, total, result in sim.simulate_scan(timing, run_number):
-                results.append(result)
-                
-                header = Text.assemble(
-                    ("⚡ ", "blue"), "CIRCUIT BOARD TRACER ", ("• ", "dim"), f"RUN #{run_number}",
-                    f" | {current}/{total} COMPONENTS"
-                )
-                
-                # Power indicator
-                power_led = LED_ON if led_state else LED_OFF
-                led_state = not led_state
-                power_status = Text.assemble(
-                    ("POWER: ", "bold"),
-                    (f"{power_led}", "green"),
-                    ("  VOLTAGE: ", "bold"), "5.0V",
-                    ("  CURRENT: ", "bold"),
-                    (f"{50 + random.randint(-5, 5)}mA", "cyan")
-                )
-                
-                circuit = create_circuit_board(results, total, current - 1)
-                
-                # Component stats with legend
-                stats = Table.grid(padding=(0, 3))
-                stats.add_row(
-                    f"[green]✓ Operational: {sum(1 for r in results if r.status == sim.EndpointStatus.OK)}[/green]",
-                    f"[yellow]⚠ Slow: {sum(1 for r in results if r.status == sim.EndpointStatus.SLOW)}[/yellow]",
-                    f"[red]✗ Failed: {sum(1 for r in results if r.status in [sim.EndpointStatus.ERROR, sim.EndpointStatus.TIMEOUT])}[/red]"
-                )
-                
-                legend = Text()
-                legend.append("  ╔═══╗ ", style="dim")
-                legend.append("IC Chip  ", style="dim")
-                legend.append(f"{TRACE_CHAR*3} ", style="dim blue")
-                legend.append("Trace  ", style="dim")
-                legend.append(f"{LED_ON} ", style="green")
-                legend.append("LED  ", style="dim")
-                legend.append(f"{SIGNAL_CHAR} ", style="yellow")
-                legend.append("Signal", style="dim")
-                
-                live.update(Panel(
-                    Group(header, power_status, Text(""), circuit, Text(""), stats, legend),
-                    title="[bold]PCB Diagnostic System[/bold]",
-                    border_style="blue",
-                    box=DOUBLE,
-                    padding=(1, 2)
-                ))
+        # Power indicator
+        power_led = LED_ON if led_state[0] else LED_OFF
+        led_state[0] = not led_state[0]
+        power_status = Text.assemble(
+            ("POWER: ", "bold"),
+            (f"{power_led}", "green"),
+            ("  VOLTAGE: ", "bold"), "5.0V",
+            ("  CURRENT: ", "bold"),
+            (f"{50 + random.randint(-5, 5)}mA", "cyan")
+        )
         
-        summary = sim.ScanSummary(run_number, results, start_time, sim.time.time())
-        sim.notify_scan_complete(summary)
-        run_number += 1
+        circuit = create_circuit_board(results, total, current - 1)
         
-        # Idle State - blinking LED
-        wait_start = sim.time.time()
-        while sim.time.time() - wait_start < timing.wait_duration_seconds:
-            remaining = timing.wait_duration_seconds - (sim.time.time() - wait_start)
-            
-            # Slow LED blink during idle
-            led_blink = LED_ON if (int(sim.time.time() * 2) % 2) == 0 else LED_OFF
-            
-            header = Text.assemble(
-                ("● ", "green"), "SYSTEM STANDBY ", ("• ", "dim"), f"NEXT SCAN: {sim.format_duration(remaining)}"
-            )
-            
-            power_status = Text.assemble(
-                ("POWER: ", "bold"),
-                (f"{led_blink}", "green"),
-                ("  STATUS: ", "bold"),
-                (Text.from_markup("[green]ALL SYSTEMS NOMINAL[/green]" if summary.passed else "[red]⚠️  FAULTS DETECTED[/red]"))
-            )
-            
-            circuit = create_circuit_board(results, len(results), -1)
-            
-            # System info
-            sys_info = Table.grid(padding=(0, 2))
-            sys_info.add_row(
-                f"Last diagnostic: {sim.format_time(summary.end_time)}",
-                f"Components: {len(results)}",
-                f"Avg latency: {summary.avg_response_ms:.0f}ms"
-            )
-            
-            with Live(refresh_per_second=4) as live:
-                live.update(Panel(
-                    Group(header, power_status, Text(""), circuit, Text(""), sys_info),
-                    title="[bold]PCB Diagnostic System (Standby)[/bold]",
-                    border_style="dim green",
-                    box=ROUNDED,
-                    padding=(1, 2)
-                ))
-                await asyncio.sleep(0.25)
-                if sim.time.time() - wait_start >= timing.wait_duration_seconds:
-                    break
+        # Component stats with legend
+        stats = Table.grid(padding=(0, 3))
+        stats.add_row(
+            f"[green]✓ Operational: {sum(1 for r in results if r.status == sim.EndpointStatus.OK)}[/green]",
+            f"[yellow]⚠ Slow: {sum(1 for r in results if r.status == sim.EndpointStatus.SLOW)}[/yellow]",
+            f"[red]✗ Failed: {sum(1 for r in results if r.status in [sim.EndpointStatus.ERROR, sim.EndpointStatus.TIMEOUT])}[/red]"
+        )
+        
+        legend = Text()
+        legend.append("  ╔═══╗ ", style="dim")
+        legend.append("IC Chip  ", style="dim")
+        legend.append(f"{TRACE_CHAR*3} ", style="dim blue")
+        legend.append("Trace  ", style="dim")
+        legend.append(f"{LED_ON} ", style="green")
+        legend.append("LED  ", style="dim")
+        legend.append(f"{SIGNAL_CHAR} ", style="yellow")
+        legend.append("Signal", style="dim")
+        
+        return Panel(
+            Group(header, power_status, Text(""), circuit, Text(""), stats, legend),
+            title="[bold]PCB Diagnostic System[/bold]",
+            border_style="blue",
+            box=DOUBLE,
+            padding=(1, 2)
+        )
+
+    def idle_cb(remaining, summary, history, wait_start):
+        # Slow LED blink during idle
+        led_blink = LED_ON if (int(sim.time.time() * 2) % 2) == 0 else LED_OFF
+        
+        header = Text.assemble(
+            ("● ", "green"), "SYSTEM STANDBY ", ("• ", "dim"), f"NEXT SCAN: {sim.format_duration(remaining)}"
+        )
+        
+        power_status = Text.assemble(
+            ("POWER: ", "bold"),
+            (f"{led_blink}", "green"),
+            ("  STATUS: ", "bold"),
+            (Text.from_markup("[green]ALL SYSTEMS NOMINAL[/green]" if summary.passed else "[red]⚠️  FAULTS DETECTED[/red]"))
+        )
+        
+        circuit = create_circuit_board(summary.results, len(summary.results), -1)
+        
+        # System info
+        sys_info = Table.grid(padding=(0, 2))
+        sys_info.add_row(
+            f"Last diagnostic: {sim.format_time(summary.end_time)}",
+            f"Components: {len(summary.results)}",
+            f"Avg latency: {summary.avg_response_ms:.0f}ms"
+        )
+        
+        return Panel(
+            Group(header, power_status, Text(""), circuit, Text(""), sys_info),
+            title="[bold]PCB Diagnostic System (Standby)[/bold]",
+            border_style="dim green",
+            box=ROUNDED,
+            padding=(1, 2)
+        )
+
+    await sim.run_app(
+        timing,
+        scanning_callback=scanning_cb,
+        idle_callback=idle_cb,
+        console=console,
+        scan_fps=12,
+        idle_fps=4
+    )
 
 if __name__ == "__main__":
     try:

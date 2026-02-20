@@ -105,81 +105,69 @@ def get_radar_sweep(angle_deg, results, total_expected):
 
 async def run_example(timing: sim.TimingConfig):
     console = Console()
-    run_number = 1
-    angle = 0
+    angle = [0]
     
-    with Live(refresh_per_second=15) as live:
-        while True:
-            results = []
-            start_time = sim.time.time()
-            
-            async for current, total, result in sim.simulate_scan(timing, run_number):
-                results.append(result)
-                
-                # Animate for a few frames while waiting for next result
-                for _ in range(5):
-                    angle = (angle + 12) % 360
-                    
-                    header = Text.assemble(
-                        ("⌖ ", "blue"), "RADAR SCANNING ", ("• ", "dim"), f"RUN #{run_number}",
-                        f" | {current}/{total} PINGED"
-                    )
-                    radar_view = get_radar_sweep(angle, results, total)
-                    
-                    # Status bar at the bottom
-                    ok = sum(1 for r in results if r.status == sim.EndpointStatus.OK)
-                    avg = sum(r.response_time_ms for r in results) / len(results) if results else 0
-                    status_bar = Text()
-                    status_bar.append("  SENSOR: ", style="dim blue")
-                    status_bar.append("ACTIVE", style="bold blue")
-                    status_bar.append(f"  ·  HITS: ", style="dim")
-                    status_bar.append(f"{ok}/{len(results)}", style="green")
-                    status_bar.append(f"  ·  AVG PING: ", style="dim")
-                    status_bar.append(f"{avg:.0f}ms", style="cyan")
-                    status_bar.append(f"  ·  BEARING: ", style="dim")
-                    status_bar.append(f"{angle:03d}°", style="blue")
-                    
-                    live.update(Panel(
-                        Group(header, Text.from_markup(radar_view), status_bar),
-                        title="[bold]Deep Space Sonar[/bold]",
-                        border_style="blue",
-                        padding=(1, 2)
-                    ))
-                    await asyncio.sleep(0.05)
-            
-            summary = sim.ScanSummary(run_number, results, start_time, sim.time.time())
-            sim.notify_scan_complete(summary)
-            run_number += 1
-            
-            # Idle State
-            wait_start = sim.time.time()
-            while sim.time.time() - wait_start < timing.wait_duration_seconds:
-                remaining = timing.wait_duration_seconds - (sim.time.time() - wait_start)
-                angle = (angle + 3) % 360
-                
-                header = Text.assemble(
-                    ("● ", "green"), "RADAR STANDBY ", ("• ", "dim"), f"NEXT SWEEP: {sim.format_duration(remaining)}"
-                )
-                radar_view = get_radar_sweep(angle, results, len(results))
-                
-                # Idle status bar
-                status_bar = Text()
-                status_bar.append("  SENSOR: ", style="dim green")
-                status_bar.append("STANDBY", style="dim green")
-                status_bar.append(f"  ·  LAST SCAN: ", style="dim")
-                status_bar.append(sim.format_time(summary.end_time), style="dim")
-                status_bar.append(f"  ·  RESULT: ", style="dim")
-                status_bar.append("CLEAR" if summary.passed else "ALERT", style="green" if summary.passed else "red")
-                
-                live.update(Panel(
-                    Group(header, Text.from_markup(radar_view), status_bar),
-                    title="[bold]Deep Space Sonar (Idle)[/bold]",
-                    border_style="dim green",
-                    padding=(1, 2)
-                ))
-                await asyncio.sleep(0.1)
-                if sim.time.time() - wait_start >= timing.wait_duration_seconds:
-                    break
+    def scanning_cb(run_number, current, total, result, results, start_time, history):
+        angle[0] = (angle[0] + 60) % 360  # Advance angle per endpoint instead of sub-loop
+        
+        header = Text.assemble(
+            ("⌖ ", "blue"), "RADAR SCANNING ", ("• ", "dim"), f"RUN #{run_number}",
+            f" | {current}/{total} PINGED"
+        )
+        radar_view = get_radar_sweep(angle[0], results, total)
+        
+        # Status bar at the bottom
+        ok = sum(1 for r in results if r.status == sim.EndpointStatus.OK)
+        avg = sum(r.response_time_ms for r in results) / len(results) if results else 0
+        status_bar = Text()
+        status_bar.append("  SENSOR: ", style="dim blue")
+        status_bar.append("ACTIVE", style="bold blue")
+        status_bar.append(f"  ·  HITS: ", style="dim")
+        status_bar.append(f"{ok}/{len(results)}", style="green")
+        status_bar.append(f"  ·  AVG PING: ", style="dim")
+        status_bar.append(f"{avg:.0f}ms", style="cyan")
+        status_bar.append(f"  ·  BEARING: ", style="dim")
+        status_bar.append(f"{angle[0]:03d}°", style="blue")
+        
+        return Panel(
+            Group(header, Text.from_markup(radar_view), status_bar),
+            title="[bold]Deep Space Sonar[/bold]",
+            border_style="blue",
+            padding=(1, 2)
+        )
+
+    def idle_cb(remaining, summary, history, wait_start):
+        angle[0] = (angle[0] + 3) % 360
+        
+        header = Text.assemble(
+            ("● ", "green"), "RADAR STANDBY ", ("• ", "dim"), f"NEXT SWEEP: {sim.format_duration(remaining)}"
+        )
+        radar_view = get_radar_sweep(angle[0], summary.results, len(summary.results))
+        
+        # Idle status bar
+        status_bar = Text()
+        status_bar.append("  SENSOR: ", style="dim green")
+        status_bar.append("STANDBY", style="dim green")
+        status_bar.append(f"  ·  LAST SCAN: ", style="dim")
+        status_bar.append(sim.format_time(summary.end_time), style="dim")
+        status_bar.append(f"  ·  RESULT: ", style="dim")
+        status_bar.append("CLEAR" if summary.passed else "ALERT", style="green" if summary.passed else "red")
+        
+        return Panel(
+            Group(header, Text.from_markup(radar_view), status_bar),
+            title="[bold]Deep Space Sonar (Idle)[/bold]",
+            border_style="dim green",
+            padding=(1, 2)
+        )
+
+    await sim.run_app(
+        timing,
+        scanning_callback=scanning_cb,
+        idle_callback=idle_cb,
+        console=console,
+        scan_fps=15,
+        idle_fps=10
+    )
 
 if __name__ == "__main__":
     try:

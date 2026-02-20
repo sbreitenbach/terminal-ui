@@ -61,55 +61,44 @@ def create_grid(results, total_expected, active_idx=-1):
 
 async def run_example(timing: sim.TimingConfig):
     console = Console()
-    run_number = 1
-    
-    while True:
-        results = []
-        start_time = sim.time.time()
-        
-        with Live(refresh_per_second=10) as live:
-            async for current, total, result in sim.simulate_scan(timing, run_number):
-                results.append(result)
-                
-                header = Text.assemble(
-                    ("■ ", "blue"), "GRID SCANNER ", ("• ", "dim"), f"RUN #{run_number}",
-                    f" | {current}/{total} COMPLETED"
-                )
-                
-                grid = create_grid(results, total, current - 1)
-                
-                live.update(Panel(
-                    Group(header, Text(""), grid),
-                    title="[bold]Endpoint Matrix[/bold]",
-                    border_style="blue",
-                    padding=(1, 2)
-                ))
 
-        summary = sim.ScanSummary(run_number, results, start_time, sim.time.time())
-        sim.notify_scan_complete(summary)
-        run_number += 1
+    def scanning_cb(run_number, current, total, result, results, start_time, history):
+        header = Text.assemble(
+            ("■ ", "blue"), "GRID SCANNER ", ("• ", "dim"), f"RUN #{run_number}",
+            f" | {current}/{total} COMPLETED"
+        )
         
-        # Idle State
-        wait_start = sim.time.time()
-        while sim.time.time() - wait_start < timing.wait_duration_seconds:
-            remaining = timing.wait_duration_seconds - (sim.time.time() - wait_start)
-            
-            header = Text.assemble(
-                ("● ", "green"), "SYSTEM READY ", ("• ", "dim"), f"NEXT SCAN: {sim.format_duration(remaining)}"
-            )
-            
-            grid = create_grid(results, len(results))
-            
-            with Live(refresh_per_second=4) as live:
-                live.update(Panel(
-                    Group(header, Text(""), grid),
-                    title="[bold]Endpoint Matrix (Idle)[/bold]",
-                    border_style="dim green",
-                    padding=(1, 2)
-                ))
-                await asyncio.sleep(0.5)
-                if sim.time.time() - wait_start >= timing.wait_duration_seconds:
-                    break
+        grid = create_grid(results, total, current - 1)
+        
+        return Panel(
+            Group(header, Text(""), grid),
+            title="[bold]Endpoint Matrix[/bold]",
+            border_style="blue",
+            padding=(1, 2)
+        )
+
+    def idle_cb(remaining, summary, history, wait_start):
+        header = Text.assemble(
+            ("● ", "green"), "SYSTEM READY ", ("• ", "dim"), f"NEXT SCAN: {sim.format_duration(remaining)}"
+        )
+        
+        grid = create_grid(summary.results, len(summary.results))
+        
+        return Panel(
+            Group(header, Text(""), grid),
+            title="[bold]Endpoint Matrix (Idle)[/bold]",
+            border_style="dim green",
+            padding=(1, 2)
+        )
+
+    await sim.run_app(
+        timing,
+        scanning_callback=scanning_cb,
+        idle_callback=idle_cb,
+        console=console,
+        scan_fps=10,
+        idle_fps=4
+    )
 
 if __name__ == "__main__":
     try:

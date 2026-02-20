@@ -105,101 +105,91 @@ def create_spectrum(results, total_expected, pulse_offset=0):
 
 async def run_example(timing: sim.TimingConfig):
     console = Console()
-    run_number = 1
-    pulse_counter = 0
+    pulse_counter = [0]
     
-    while True:
-        results = []
-        start_time = sim.time.time()
+    def scanning_cb(run_number, current, total, result, results, start_time, history):
+        pulse_counter[0] += 1
         
-        with Live(refresh_per_second=12) as live:
-            async for current, total, result in sim.simulate_scan(timing, run_number):
-                results.append(result)
-                pulse_counter += 1
-                
-                header = Text.assemble(
-                    ("♪ ", "blue"), "SPECTRUM ANALYZER ", ("• ", "dim"), f"RUN #{run_number}",
-                    f" | {current}/{total} SCANNED"
-                )
-                
-                # Stats summary
-                stats = Table.grid(padding=(0, 2))
-                stats.add_row(
-                    f"[green]OK: {sum(1 for r in results if r.status == sim.EndpointStatus.OK)}[/green]",
-                    f"[yellow]SLOW: {sum(1 for r in results if r.status == sim.EndpointStatus.SLOW)}[/yellow]",
-                    f"[red]FAIL: {sum(1 for r in results if r.status in [sim.EndpointStatus.ERROR, sim.EndpointStatus.TIMEOUT])}[/red]",
-                    f"[blue]AVG: {(sum(r.response_time_ms for r in results)/len(results)):.0f}ms[/blue]" if results else "[blue]AVG: --[/blue]"
-                )
-                
-                spectrum = create_spectrum(results, total, pulse_counter)
-                
-                # Scale markers
-                scale = Text()
-                scale.append("  0ms", style="dim")
-                scale.append(" " * 15, style="dim")
-                scale.append("1000ms", style="dim")
-                scale.append(" " * 12, style="dim")
-                scale.append("2500ms", style="dim")
-                
-                # Last scan timestamp
-                ts_text = Text.assemble(
-                    ("  Last scan: ", "dim"), (sim.format_time(sim.time.time()), "blue")
-                )
-                
-                live.update(Panel(
-                    Group(header, Text(""), spectrum, Text(""), scale, stats, ts_text),
-                    title="[bold]Audio Waveform Monitor[/bold]",
-                    border_style="blue",
-                    padding=(1, 2)
-                ))
+        header = Text.assemble(
+            ("♪ ", "blue"), "SPECTRUM ANALYZER ", ("• ", "dim"), f"RUN #{run_number}",
+            f" | {current}/{total} SCANNED"
+        )
         
-        summary = sim.ScanSummary(run_number, results, start_time, sim.time.time())
-        sim.notify_scan_complete(summary)
-        run_number += 1
+        # Stats summary
+        stats = Table.grid(padding=(0, 2))
+        stats.add_row(
+            f"[green]OK: {sum(1 for r in results if r.status == sim.EndpointStatus.OK)}[/green]",
+            f"[yellow]SLOW: {sum(1 for r in results if r.status == sim.EndpointStatus.SLOW)}[/yellow]",
+            f"[red]FAIL: {sum(1 for r in results if r.status in [sim.EndpointStatus.ERROR, sim.EndpointStatus.TIMEOUT])}[/red]",
+            f"[blue]AVG: {(sum(r.response_time_ms for r in results)/len(results)):.0f}ms[/blue]" if results else "[blue]AVG: --[/blue]"
+        )
         
-        # Idle State - gentle oscillation
-        wait_start = sim.time.time()
-        while sim.time.time() - wait_start < timing.wait_duration_seconds:
-            remaining = timing.wait_duration_seconds - (sim.time.time() - wait_start)
-            
-            header = Text.assemble(
-                ("● ", "green"), "MONITORING ", ("• ", "dim"), f"NEXT SCAN: {sim.format_duration(remaining)}"
+        spectrum = create_spectrum(results, total, pulse_counter[0])
+        
+        # Scale markers
+        scale = Text()
+        scale.append("  0ms", style="dim")
+        scale.append(" " * 15, style="dim")
+        scale.append("1000ms", style="dim")
+        scale.append(" " * 12, style="dim")
+        scale.append("2500ms", style="dim")
+        
+        # Last scan timestamp
+        ts_text = Text.assemble(
+            ("  Last scan: ", "dim"), (sim.format_time(sim.time.time()), "blue")
+        )
+        
+        return Panel(
+            Group(header, Text(""), spectrum, Text(""), scale, stats, ts_text),
+            title="[bold]Audio Waveform Monitor[/bold]",
+            border_style="blue",
+            padding=(1, 2)
+        )
+
+    def idle_cb(remaining, summary, history, wait_start):
+        header = Text.assemble(
+            ("● ", "green"), "MONITORING ", ("• ", "dim"), f"NEXT SCAN: {sim.format_duration(remaining)}"
+        )
+        
+        # Create breathing effect by gently modulating bar heights
+        breathing_phase = (sim.time.time() % 3.0) / 3.0  # 0 to 1 cycle
+        breathing_offset = int(math.sin(breathing_phase * 2 * math.pi) * 2)
+        
+        # Modify results slightly for breathing effect
+        breathing_results = []
+        for r in summary.results:
+            modified_result = sim.EndpointResult(
+                endpoint=r.endpoint,
+                status=r.status,
+                response_time_ms=max(30, r.response_time_ms + breathing_offset * 50),
+                status_code=r.status_code,
+                method=r.method,
+                timestamp=r.timestamp
             )
-            
-            # Create breathing effect by gently modulating bar heights
-            breathing_phase = (sim.time.time() % 3.0) / 3.0  # 0 to 1 cycle
-            breathing_offset = int(math.sin(breathing_phase * 2 * math.pi) * 2)
-            
-            # Modify results slightly for breathing effect
-            breathing_results = []
-            for r in results:
-                modified_result = sim.EndpointResult(
-                    endpoint=r.endpoint,
-                    status=r.status,
-                    response_time_ms=max(30, r.response_time_ms + breathing_offset * 50),
-                    status_code=r.status_code,
-                    method=r.method,
-                    timestamp=r.timestamp
-                )
-                breathing_results.append(modified_result)
-            
-            spectrum = create_spectrum(breathing_results, len(results), 0)
-            
-            stats = Table.grid(padding=(0, 2))
-            stats_text = f"Last scan: {'[green]PASSED[/green]' if summary.passed else '[red]FAILED[/red]'}"
-            stats_text += f" | {len(results)} endpoints | Avg {summary.avg_response_ms:.0f}ms"
-            stats.add_row(stats_text)
-            
-            with Live(refresh_per_second=4) as live:
-                live.update(Panel(
-                    Group(header, Text(""), spectrum, Text(""), stats),
-                    title="[bold]Audio Waveform Monitor (Idle)[/bold]",
-                    border_style="dim green",
-                    padding=(1, 2)
-                ))
-                await asyncio.sleep(0.25)
-                if sim.time.time() - wait_start >= timing.wait_duration_seconds:
-                    break
+            breathing_results.append(modified_result)
+        
+        spectrum = create_spectrum(breathing_results, len(summary.results), 0)
+        
+        stats = Table.grid(padding=(0, 2))
+        stats_text = f"Last scan: {'[green]PASSED[/green]' if summary.passed else '[red]FAILED[/red]'}"
+        stats_text += f" | {len(summary.results)} endpoints | Avg {summary.avg_response_ms:.0f}ms"
+        stats.add_row(stats_text)
+        
+        return Panel(
+            Group(header, Text(""), spectrum, Text(""), stats),
+            title="[bold]Audio Waveform Monitor (Idle)[/bold]",
+            border_style="dim green",
+            padding=(1, 2)
+        )
+
+    await sim.run_app(
+        timing,
+        scanning_callback=scanning_cb,
+        idle_callback=idle_cb,
+        console=console,
+        scan_fps=12,
+        idle_fps=4
+    )
 
 if __name__ == "__main__":
     try:

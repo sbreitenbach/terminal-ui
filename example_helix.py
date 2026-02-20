@@ -129,81 +129,68 @@ def get_helix_visualization(results, total_expected, rotation_angle, scanning=Tr
 
 async def run_example(timing: sim.TimingConfig):
     console = Console()
-    run_number = 1
-    rotation = 0
+    rotation = [0]
     
-    while True:
-        results = []
-        start_time = sim.time.time()
+    def scanning_cb(run_number, current, total, result, results, start_time, history):
+        rotation[0] = (rotation[0] + 8) % 360
         
-        with Live(refresh_per_second=15) as live:
-            async for current, total, result in sim.simulate_scan(timing, run_number):
-                results.append(result)
-                
-                # Animate rotation during scan
-                for _ in range(3):
-                    rotation = (rotation + 8) % 360
-                    
-                    header = Text.assemble(
-                        ("🧬 ", "blue"), "HELIX SCANNER ", ("• ", "dim"), f"RUN #{run_number}",
-                        f" | {current}/{total} SEQUENCED",
-                        ("  OK:", "dim"), (f"{sum(1 for r in results if r.status == sim.EndpointStatus.OK)}", "green"),
-                        ("  ERR:", "dim"), (f"{sum(1 for r in results if r.status in [sim.EndpointStatus.ERROR, sim.EndpointStatus.TIMEOUT])}", "red"),
-                    )
-                    
-                    helix = get_helix_visualization(results, total, rotation, scanning=True)
-                    
-                    # Stats
-                    stats = Table.grid(padding=(0, 2))
-                    stats.add_row(
-                        f"[green]OK: {sum(1 for r in results if r.status == sim.EndpointStatus.OK)}[/green]",
-                        f"[yellow]SLOW: {sum(1 for r in results if r.status == sim.EndpointStatus.SLOW)}[/yellow]",
-                        f"[red]ERROR: {sum(1 for r in results if r.status in [sim.EndpointStatus.ERROR, sim.EndpointStatus.TIMEOUT])}[/red]"
-                    )
-                    
-                    live.update(Panel(
-                        Group(header, helix, stats),
-                        title="[bold]DNA Sequence Analyzer[/bold]",
-                        border_style="blue",
-                        padding=(1, 1)
-                    ))
-                    await asyncio.sleep(0.03)
+        header = Text.assemble(
+            ("🧬 ", "blue"), "HELIX SCANNER ", ("• ", "dim"), f"RUN #{run_number}",
+            f" | {current}/{total} SEQUENCED",
+            ("  OK:", "dim"), (f"{sum(1 for r in results if r.status == sim.EndpointStatus.OK)}", "green"),
+            ("  ERR:", "dim"), (f"{sum(1 for r in results if r.status in [sim.EndpointStatus.ERROR, sim.EndpointStatus.TIMEOUT])}", "red"),
+        )
         
-        summary = sim.ScanSummary(run_number, results, start_time, sim.time.time())
-        sim.notify_scan_complete(summary)
-        run_number += 1
+        helix = get_helix_visualization(results, total, rotation[0], scanning=True)
         
-        # Idle State - slow rotation
-        wait_start = sim.time.time()
-        while sim.time.time() - wait_start < timing.wait_duration_seconds:
-            remaining = timing.wait_duration_seconds - (sim.time.time() - wait_start)
-            rotation = (rotation + 2) % 360
-            
-            header = Text.assemble(
-                ("● ", "green"), "SEQUENCE STABLE ", ("• ", "dim"), f"NEXT SCAN: {sim.format_duration(remaining)}"
-            )
-            
-            helix = get_helix_visualization(results, len(results), rotation, scanning=False)
-            
-            # Summary info
-            info = Table.grid(padding=(0, 2))
-            status_text = "[green]SEQUENCE COMPLETE[/green]" if summary.passed else "[red]⚠️  ANOMALIES DETECTED[/red]"
-            info.add_row(
-                status_text,
-                f"Nodes: {len(results)}",
-                f"Avg: {summary.avg_response_ms:.0f}ms"
-            )
-            
-            with Live(refresh_per_second=10) as live:
-                live.update(Panel(
-                    Group(header, helix, info),
-                    title="[bold]DNA Sequence Analyzer (Idle)[/bold]",
-                    border_style="dim green",
-                    padding=(1, 1)
-                ))
-                await asyncio.sleep(0.1)
-                if sim.time.time() - wait_start >= timing.wait_duration_seconds:
-                    break
+        # Stats
+        stats = Table.grid(padding=(0, 2))
+        stats.add_row(
+            f"[green]OK: {sum(1 for r in results if r.status == sim.EndpointStatus.OK)}[/green]",
+            f"[yellow]SLOW: {sum(1 for r in results if r.status == sim.EndpointStatus.SLOW)}[/yellow]",
+            f"[red]ERROR: {sum(1 for r in results if r.status in [sim.EndpointStatus.ERROR, sim.EndpointStatus.TIMEOUT])}[/red]"
+        )
+        
+        return Panel(
+            Group(header, helix, stats),
+            title="[bold]DNA Sequence Analyzer[/bold]",
+            border_style="blue",
+            padding=(1, 1)
+        )
+
+    def idle_cb(remaining, summary, history, wait_start):
+        rotation[0] = (rotation[0] + 2) % 360
+        
+        header = Text.assemble(
+            ("● ", "green"), "SEQUENCE STABLE ", ("• ", "dim"), f"NEXT SCAN: {sim.format_duration(remaining)}"
+        )
+        
+        helix = get_helix_visualization(summary.results, len(summary.results), rotation[0], scanning=False)
+        
+        # Summary info
+        info = Table.grid(padding=(0, 2))
+        status_text = "[green]SEQUENCE COMPLETE[/green]" if summary.passed else "[red]⚠️  ANOMALIES DETECTED[/red]"
+        info.add_row(
+            status_text,
+            f"Nodes: {len(summary.results)}",
+            f"Avg: {summary.avg_response_ms:.0f}ms"
+        )
+        
+        return Panel(
+            Group(header, helix, info),
+            title="[bold]DNA Sequence Analyzer (Idle)[/bold]",
+            border_style="dim green",
+            padding=(1, 1)
+        )
+
+    await sim.run_app(
+        timing,
+        scanning_callback=scanning_cb,
+        idle_callback=idle_cb,
+        console=console,
+        scan_fps=15,
+        idle_fps=10
+    )
 
 if __name__ == "__main__":
     try:
