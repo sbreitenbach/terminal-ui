@@ -1,6 +1,6 @@
-# API Scanner Terminal UI Prototypes
+# Terminal UI Prototypes
 
-A collection of 14 distinct terminal user interface (TUI) prototypes for a recurring API scanner. These examples demonstrate different ways to visualize active scanning states and passive waiting states in the terminal using Python's `rich` library.
+A collection of terminal user interface (TUI) prototypes for a recurring scanner. These examples demonstrate different ways to visualize active scanning states and passive waiting states in the terminal using Python's `rich` library.
 
 ## 🚀 Features
 
@@ -8,7 +8,6 @@ A collection of 14 distinct terminal user interface (TUI) prototypes for a recur
 - **Active/Passive States**: Distinct visual indicators for when the tool is scanning vs. waiting.
 - **Mac Notifications**: Native macOS notifications (via `osascript`) when a scan completes or finds issues.
 - **Realistic Simulation**: A shared `scanner_sim.py` module provides fake API endpoint results with jitter, response times, and random failures.
-- **Demo Mode**: Accelerated timing (15s scan / 30s wait) by default for quick evaluation. Use `--real-timing` for production intervals (1 min / 5 min).
 
 ## 🛠 Setup
 
@@ -83,10 +82,6 @@ Groups and visualizes endpoints by their API pathways just like a filesystem dir
 ### 18. Assembly Line (`example_assembly.py`)
 An industrial factory conveyor belt. Endpoints queue up on the left and slide across a moving animated belt as they are processed.
 
-## ⚙️ Configuration
-
-All scripts support the following command-line argument:
-- `--real-timing`: Use the production intervals (1 minute scan duration, 5 minute wait between scans) instead of the accelerated demo timing.
 
 ## 📂 Project Structure
 
