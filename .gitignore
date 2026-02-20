@@ -2,3 +2,5 @@ venv/
 __pycache__/
 Solarized Light.terminal
 generate_verification.py
+.DS_Store
+screenshots/
