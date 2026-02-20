@@ -39,7 +39,7 @@ def make_layout() -> Layout:
 
 # ── Timeline Rendering ────────────────────────────────────────────────────────
 
-def render_timeline_scanning(results: list[sim.EndpointResult], current: int, total: int) -> Panel:
+def render_timeline_scanning(results: list[sim.EndpointResult], current: int, total: int, start_time: float) -> Panel:
     """Render a vertical timeline of scan events in progress."""
     table = Table(box=None, show_header=False, padding=(0, 1), expand=True)
     table.add_column("T", width=10, justify="right")  # Time
@@ -48,9 +48,10 @@ def render_timeline_scanning(results: list[sim.EndpointResult], current: int, to
 
     for i, r in enumerate(results[-15:]):
         time_str = sim.format_time(r.timestamp)
+        elapsed = r.timestamp - start_time
         is_last = (i == len(results[-15:]) - 1)
 
-        # Connector
+        # Connector with vertical line continuity
         if is_last:
             connector = Text("◉", style="bold bright_red")
         elif r.status == sim.EndpointStatus.OK:
@@ -60,13 +61,16 @@ def render_timeline_scanning(results: list[sim.EndpointResult], current: int, to
         else:
             connector = Text("●", style="red")
 
-        # Event description
+        # Event description with method, status code, and elapsed
         ms_style = "green" if r.response_time_ms < 200 else "yellow" if r.response_time_ms < 1000 else "red"
         event = Text()
+        event.append(f"{r.method} ", style="dim cyan")
         event.append(f"{r.endpoint} ", style="dim" if not is_last else "bold")
         event.append(f"→ {r.response_time_ms}ms ", style=ms_style)
+        event.append(f"[{r.status_code or '---'}] ", style="dim")
         if r.status != sim.EndpointStatus.OK:
-            event.append(f"[{r.status.value.upper()}]", style="bold red")
+            event.append(f"[{r.status.value.upper()}] ", style="bold red")
+        event.append(f"+{elapsed:.1f}s", style="dim blue")
 
         table.add_row(
             Text(time_str, style="dim blue"),
@@ -74,12 +78,20 @@ def render_timeline_scanning(results: list[sim.EndpointResult], current: int, to
             event,
         )
 
+        # Add connector lines between entries (except after last)
+        if not is_last:
+            table.add_row(
+                Text("", style="dim"),
+                Text("│", style="dim"),
+                Text("", style="dim"),
+            )
+
     # Show remaining
     remaining = total - current
     if remaining > 0:
         table.add_row(
             Text("", style="dim"),
-            Text("┊", style="dim"),
+            Text("┆", style="dim"),
             Text(f"{remaining} more endpoint{'s' if remaining > 1 else ''} queued...", style="dim italic"),
         )
 
@@ -123,123 +135,111 @@ def render_timeline_history(history: list[sim.ScanSummary]) -> Panel:
 async def run_example(timing: sim.TimingConfig):
     console = Console()
     layout = make_layout()
-    history: list[sim.ScanSummary] = []
-    run_number = 1
+    
+    def scanning_cb(run_number, current, total, result, results, start_time, history):
+        elapsed = sim.time.time() - start_time
 
-    while True:
-        # ── SCANNING STATE ────────────────────────────────────────────────
-        results: list[sim.EndpointResult] = []
-        start_time = sim.time.time()
+        # Header — scan active
+        pct = current / total * 100
+        bar_width = 30
+        filled = int(current / total * bar_width)
+        bar = Text()
+        bar.append("█" * filled, style="bright_blue")
+        bar.append("░" * (bar_width - filled), style="white")
 
-        with Live(layout, console=console, refresh_per_second=10):
-            async for current, total, result in sim.simulate_scan(timing, run_number):
-                results.append(result)
-                elapsed = sim.time.time() - start_time
+        header_content = Group(
+            Text.assemble(
+                ("  ◉ SCANNING", "bold bright_blue"),
+                (f"  Run #{run_number}", "dim"),
+                (f"  ·  {current}/{total}", "bold"),
+                (f"  ·  {sim.format_duration(elapsed)} elapsed", "dim"),
+            ),
+            Align.center(Text.assemble(("  ", ""), bar, (f"  {pct:.0f}%", "bold"))),
+        )
+        layout["header"].update(Panel(header_content, border_style="blue", style="on white"))
 
-                # Header — scan active
-                pct = current / total * 100
-                bar_width = 30
-                filled = int(current / total * bar_width)
-                bar = Text()
-                bar.append("█" * filled, style="bright_blue")
-                bar.append("░" * (bar_width - filled), style="white")
+        # Timeline
+        layout["timeline"].update(render_timeline_scanning(results, current, total, start_time))
 
-                header_content = Group(
-                    Text.assemble(
-                        ("  ◉ SCANNING", "bold bright_blue"),
-                        (f"  Run #{run_number}", "dim"),
-                        (f"  ·  {current}/{total}", "bold"),
-                        (f"  ·  {sim.format_duration(elapsed)} elapsed", "dim"),
-                    ),
-                    Align.center(Text.assemble(("  ", ""), bar, (f"  {pct:.0f}%", "bold"))),
-                )
-                layout["header"].update(Panel(header_content, border_style="blue", style="on white"))
+        # Stats sidebar
+        ok = sum(1 for r in results if r.status == sim.EndpointStatus.OK)
+        fail = sum(1 for r in results if r.status in (sim.EndpointStatus.ERROR, sim.EndpointStatus.TIMEOUT))
+        slow = sum(1 for r in results if r.status == sim.EndpointStatus.SLOW)
+        avg = sum(r.response_time_ms for r in results) / len(results) if results else 0
 
-                # Timeline
-                layout["timeline"].update(render_timeline_scanning(results, current, total))
+        stats_table = Table.grid(padding=(0, 1))
+        stats_table.add_column(width=10)
+        stats_table.add_column()
+        stats_table.add_row(Text("OK", style="dim"), Text(str(ok), style="bold green"))
+        stats_table.add_row(Text("Slow", style="dim"), Text(str(slow), style="bold yellow"))
+        stats_table.add_row(Text("Errors", style="dim"), Text(str(fail), style="bold red"))
+        stats_table.add_row(Text("Avg ms", style="dim"), Text(f"{avg:.0f}", style="bold blue"))
+        layout["stats"].update(Panel(stats_table, title="[dim]Live Stats[/dim]", border_style="bright_blue"))
 
-                # Stats sidebar
-                ok = sum(1 for r in results if r.status == sim.EndpointStatus.OK)
-                fail = sum(1 for r in results if r.status in (sim.EndpointStatus.ERROR, sim.EndpointStatus.TIMEOUT))
-                slow = sum(1 for r in results if r.status == sim.EndpointStatus.SLOW)
-                avg = sum(r.response_time_ms for r in results) / len(results) if results else 0
+        # Details — latest endpoint
+        detail_table = Table.grid(padding=(0, 1))
+        detail_table.add_column(width=10)
+        detail_table.add_column()
+        detail_table.add_row(Text("Endpoint", style="dim"), Text(result.endpoint, style="bold"))
+        detail_table.add_row(Text("Status", style="dim"), Text(result.status.value.upper(), style="bold green" if result.status == sim.EndpointStatus.OK else "bold red"))
+        detail_table.add_row(Text("Latency", style="dim"), Text(f"{result.response_time_ms}ms", style="blue"))
+        detail_table.add_row(Text("Code", style="dim"), Text(str(result.status_code) if result.status_code else "N/A", style="dim"))
+        layout["details"].update(Panel(detail_table, title="[dim]Latest[/dim]", border_style="bright_blue"))
+        
+        return layout
 
-                stats_table = Table.grid(padding=(0, 1))
-                stats_table.add_column(width=10)
-                stats_table.add_column()
-                stats_table.add_row(Text("OK", style="dim"), Text(str(ok), style="bold green"))
-                stats_table.add_row(Text("Slow", style="dim"), Text(str(slow), style="bold yellow"))
-                stats_table.add_row(Text("Errors", style="dim"), Text(str(fail), style="bold red"))
-                stats_table.add_row(Text("Avg ms", style="dim"), Text(f"{avg:.0f}", style="bold blue"))
-                layout["stats"].update(Panel(stats_table, title="[dim]Live Stats[/dim]", border_style="bright_blue"))
+    def idle_cb(remaining, summary, history, wait_start):
+        # Header — idle
+        header_content = Group(
+            Text.assemble(
+                ("  ● IDLE", "dim green"),
+                (f"  ·  Next scan in ", "dim"),
+                (sim.format_duration(remaining), "bold black"),
+            ),
+            Text(f"  Completed {len(history)} scan{'s' if len(history) != 1 else ''}", style="dim"),
+        )
+        layout["header"].update(Panel(header_content, border_style="dim green", style="on white"))
 
-                # Details — latest endpoint
-                detail_table = Table.grid(padding=(0, 1))
-                detail_table.add_column(width=10)
-                detail_table.add_column()
-                detail_table.add_row(Text("Endpoint", style="dim"), Text(result.endpoint, style="bold"))
-                detail_table.add_row(Text("Status", style="dim"), Text(result.status.value.upper(), style="bold green" if result.status == sim.EndpointStatus.OK else "bold red"))
-                detail_table.add_row(Text("Latency", style="dim"), Text(f"{result.response_time_ms}ms", style="blue"))
-                detail_table.add_row(Text("Code", style="dim"), Text(str(result.status_code) if result.status_code else "N/A", style="dim"))
-                layout["details"].update(Panel(detail_table, title="[dim]Latest[/dim]", border_style="bright_blue"))
+        # Timeline — history
+        layout["timeline"].update(render_timeline_history(history))
 
-        # Scan complete
-        summary = sim.ScanSummary(run_number, results, start_time, sim.time.time())
-        history.append(summary)
-        sim.notify_scan_complete(summary)
-        run_number += 1
+        # Stats — overall
+        total_ok = sum(h.total_ok for h in history)
+        total_scanned = sum(len(h.results) for h in history)
+        pass_rate = (total_ok / total_scanned * 100) if total_scanned else 0
+        overall_avg = sum(h.avg_response_ms for h in history) / len(history) if history else 0
 
-        # ── WAITING STATE ─────────────────────────────────────────────────
-        wait_start = sim.time.time()
+        stats_table = Table.grid(padding=(0, 1))
+        stats_table.add_column(width=10)
+        stats_table.add_column()
+        stats_table.add_row(Text("Runs", style="dim"), Text(str(len(history)), style="bold"))
+        stats_table.add_row(Text("Endpoints", style="dim"), Text(str(total_scanned), style="bold"))
+        stats_table.add_row(Text("Pass Rate", style="dim"), Text(f"{pass_rate:.1f}%", style="green" if pass_rate > 95 else "yellow"))
+        stats_table.add_row(Text("Avg ms", style="dim"), Text(f"{overall_avg:.0f}", style="cyan"))
+        layout["stats"].update(Panel(stats_table, title="[dim]Overall[/dim]", border_style="grey30"))
 
-        with Live(layout, console=console, refresh_per_second=4):
-            while True:
-                elapsed_wait = sim.time.time() - wait_start
-                if elapsed_wait >= timing.wait_duration_seconds:
-                    break
-                remaining = timing.wait_duration_seconds - elapsed_wait
+        # Details — last run
+        rc = "green" if summary.passed else "red"
+        detail_table = Table.grid(padding=(0, 1))
+        detail_table.add_column(width=10)
+        detail_table.add_column()
+        detail_table.add_row(Text("Run", style="dim"), Text(f"#{summary.run_number}", style="bold"))
+        detail_table.add_row(Text("Result", style="dim"), Text("PASS" if summary.passed else "FAIL", style=f"bold {rc}"))
+        detail_table.add_row(Text("Duration", style="dim"), Text(f"{summary.duration:.1f}s", style="dim"))
+        detail_table.add_row(Text("Avg ms", style="dim"), Text(f"{summary.avg_response_ms:.0f}", style="cyan"))
+        layout["details"].update(Panel(detail_table, title="[dim]Last Run[/dim]", border_style="grey30"))
 
-                # Header — idle
-                header_content = Group(
-                    Text.assemble(
-                        ("  ● IDLE", "dim green"),
-                        (f"  ·  Next scan in ", "dim"),
-                        (sim.format_duration(remaining), "bold black"),
-                    ),
-                    Text(f"  Completed {len(history)} scan{'s' if len(history) != 1 else ''}", style="dim"),
-                )
-                layout["header"].update(Panel(header_content, border_style="dim green", style="on white"))
+        return layout
 
-                # Timeline — history
-                layout["timeline"].update(render_timeline_history(history))
-
-                # Stats — overall
-                total_ok = sum(h.total_ok for h in history)
-                total_scanned = sum(len(h.results) for h in history)
-                pass_rate = (total_ok / total_scanned * 100) if total_scanned else 0
-                overall_avg = sum(h.avg_response_ms for h in history) / len(history) if history else 0
-
-                stats_table = Table.grid(padding=(0, 1))
-                stats_table.add_column(width=10)
-                stats_table.add_column()
-                stats_table.add_row(Text("Runs", style="dim"), Text(str(len(history)), style="bold"))
-                stats_table.add_row(Text("Endpoints", style="dim"), Text(str(total_scanned), style="bold"))
-                stats_table.add_row(Text("Pass Rate", style="dim"), Text(f"{pass_rate:.1f}%", style="green" if pass_rate > 95 else "yellow"))
-                stats_table.add_row(Text("Avg ms", style="dim"), Text(f"{overall_avg:.0f}", style="cyan"))
-                layout["stats"].update(Panel(stats_table, title="[dim]Overall[/dim]", border_style="grey30"))
-
-                # Details — last run
-                rc = "green" if summary.passed else "red"
-                detail_table = Table.grid(padding=(0, 1))
-                detail_table.add_column(width=10)
-                detail_table.add_column()
-                detail_table.add_row(Text("Run", style="dim"), Text(f"#{summary.run_number}", style="bold"))
-                detail_table.add_row(Text("Result", style="dim"), Text("PASS" if summary.passed else "FAIL", style=f"bold {rc}"))
-                detail_table.add_row(Text("Duration", style="dim"), Text(f"{summary.duration:.1f}s", style="dim"))
-                detail_table.add_row(Text("Avg ms", style="dim"), Text(f"{summary.avg_response_ms:.0f}", style="cyan"))
-                layout["details"].update(Panel(detail_table, title="[dim]Last Run[/dim]", border_style="grey30"))
-
-                await asyncio.sleep(0.25)
+    await sim.run_app(
+        timing,
+        scanning_callback=scanning_cb,
+        idle_callback=idle_cb,
+        base_renderable=layout,
+        console=console,
+        scan_fps=10,
+        idle_fps=4
+    )
 
 
 if __name__ == "__main__":

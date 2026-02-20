@@ -31,6 +31,26 @@ ENDPOINTS = [
     "/api/v1/health",
 ]
 
+# HTTP methods mapped to endpoints by route semantics
+ENDPOINT_METHODS = {
+    "/api/v1/users": "GET",
+    "/api/v1/users/profile": "GET",
+    "/api/v1/auth/token": "POST",
+    "/api/v1/auth/refresh": "POST",
+    "/api/v1/orders": "GET",
+    "/api/v1/orders/history": "GET",
+    "/api/v1/products": "GET",
+    "/api/v1/products/search": "POST",
+    "/api/v1/inventory": "PUT",
+    "/api/v1/payments": "POST",
+    "/api/v1/notifications": "GET",
+    "/api/v1/health": "GET",
+}
+
+def get_method(endpoint: str) -> str:
+    """Return the HTTP method for a given endpoint."""
+    return ENDPOINT_METHODS.get(endpoint, "GET")
+
 
 class EndpointStatus(Enum):
     OK = "ok"
@@ -46,6 +66,7 @@ class EndpointResult:
     status: EndpointStatus
     response_time_ms: int
     status_code: int
+    method: str = "GET"
     timestamp: float = field(default_factory=time.time)
 
 
@@ -102,6 +123,7 @@ class TimingConfig:
 
 def _generate_result(endpoint: str) -> EndpointResult:
     """Generate a realistic fake scan result for an endpoint."""
+    method = get_method(endpoint)
     roll = random.random()
 
     if roll < 0.75:
@@ -112,6 +134,7 @@ def _generate_result(endpoint: str) -> EndpointResult:
             status=EndpointStatus.OK,
             response_time_ms=response_time,
             status_code=200,
+            method=method,
         )
     elif roll < 0.88:
         # Slow response
@@ -121,6 +144,7 @@ def _generate_result(endpoint: str) -> EndpointResult:
             status=EndpointStatus.SLOW,
             response_time_ms=response_time,
             status_code=200,
+            method=method,
         )
     elif roll < 0.96:
         # Error
@@ -131,6 +155,7 @@ def _generate_result(endpoint: str) -> EndpointResult:
             status=EndpointStatus.ERROR,
             response_time_ms=response_time,
             status_code=status_code,
+            method=method,
         )
     else:
         # Timeout
@@ -139,6 +164,7 @@ def _generate_result(endpoint: str) -> EndpointResult:
             status=EndpointStatus.TIMEOUT,
             response_time_ms=5000,
             status_code=0,
+            method=method,
         )
 
 
@@ -243,3 +269,65 @@ def parse_args():
     )
     args = parser.parse_args()
     return TimingConfig.real() if args.real_timing else TimingConfig.demo()
+
+# ── Shared Loop Runner ────────────────────────────────────────────────────────
+
+from typing import Callable, Any, Optional
+
+async def run_app(
+    timing: TimingConfig,
+    scanning_callback: Callable[[int, int, int, EndpointResult, list[EndpointResult], float, list[ScanSummary]], Any],
+    idle_callback: Callable[[float, ScanSummary, list[ScanSummary], float], Any],
+    base_renderable: Any = None,
+    console: Any = None,
+    scan_fps: int = 10,
+    idle_fps: int = 4,
+):
+    """
+    Shared boilerplate for running the scanning/idle loop.
+    - scanning_callback: (run_number, current, total, result, results, start_time) -> renderable or None
+    - idle_callback: (remaining, summary, history, wait_start) -> renderable or None
+    """
+    from rich.live import Live
+
+    run_number = 1
+    history = []
+    
+    while True:
+        # --- Scanning State ---
+        results = []
+        start_time = time.time()
+        
+        with Live(base_renderable, console=console, refresh_per_second=scan_fps) as live:
+            async for current, total, result in simulate_scan(timing, run_number):
+                results.append(result)
+                
+                renderable = scanning_callback(
+                    run_number, current, total, result, results, start_time, history
+                )
+                if renderable is not None:
+                    live.update(renderable)
+
+        # Scan complete
+        summary = ScanSummary(run_number, results, start_time, time.time())
+        history.append(summary)
+        notify_scan_complete(summary)
+        
+        # --- Waiting State ---
+        wait_start = time.time()
+        with Live(base_renderable, console=console, refresh_per_second=idle_fps) as live:
+            while time.time() - wait_start < timing.wait_duration_seconds:
+                remaining = timing.wait_duration_seconds - (time.time() - wait_start)
+                
+                renderable = idle_callback(
+                    remaining, summary, history, wait_start
+                )
+                if renderable is not None:
+                    live.update(renderable)
+                    
+                await asyncio.sleep(1.0 / idle_fps)
+                if time.time() - wait_start >= timing.wait_duration_seconds:
+                    break
+        
+        run_number += 1
+

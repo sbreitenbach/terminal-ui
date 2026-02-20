@@ -71,6 +71,18 @@ Rotating double-helix visualization with endpoints distributed along spiral stra
 ### 14. Circuit Board Tracer (`example_circuit.py`)
 Electronics-themed display showing endpoints as IC chips on a circuit board with signal traces and blinking power LEDs.
 
+### 15. Orbital System (`example_orbital.py`)
+A planetary view where the core server is the sun and endpoints orbit around it. Slower endpoints drag into wider orbits, and failures break orbit entirely.
+
+### 16. Kanban / Sprint Board (`example_kanban.py`)
+A highly practical sprint board. As requests process, they drop into "Done", "Review" (slow), or "Blocked" (failed) vertical columns.
+
+### 17. Hierarchical Tree (`example_tree.py`)
+Groups and visualizes endpoints by their API pathways just like a filesystem directory tree. Whole folder branches highlight red if any nested endpoint fails.
+
+### 18. Assembly Line (`example_assembly.py`)
+An industrial factory conveyor belt. Endpoints queue up on the left and slide across a moving animated belt as they are processed.
+
 ## ⚙️ Configuration
 
 All scripts support the following command-line argument:
