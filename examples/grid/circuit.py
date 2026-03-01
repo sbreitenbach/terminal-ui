@@ -8,6 +8,8 @@ from rich.console import Console, Group
 from rich.text import Text
 from rich.box import DOUBLE, ROUNDED
 
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 import scanner_sim as sim
 
 # Circuit characters

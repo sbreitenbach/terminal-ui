@@ -9,6 +9,8 @@ from rich.text import Text
 from rich.align import Align
 from rich.style import Style
 
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 import scanner_sim as sim
 
 # --- ASCII Art Header ---

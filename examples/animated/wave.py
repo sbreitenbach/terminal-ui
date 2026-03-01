@@ -7,6 +7,8 @@ from rich.table import Table
 from rich.console import Console, Group
 from rich.text import Text
 
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 import scanner_sim as sim
 
 # Wave/spectrum constants

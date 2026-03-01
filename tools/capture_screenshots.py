@@ -22,7 +22,7 @@ def capture_example(script_path, output_dir="screenshots"):
     # AppleScript to launch Terminal, run the script, and get the window ID.
     # We use 'do script' which returns a tab, then get the window of that tab.
     # process substitution is used to ensure we get the ID out cleanly.
-    cmd = f"source venv/bin/activate && python {filename}"
+    cmd = f"source venv/bin/activate && python {script_path}"
     
     # Escaping for AppleScript
     # We need to escape backslashes and double quotes in the command
@@ -96,7 +96,7 @@ def capture_example(script_path, output_dir="screenshots"):
 
 def main():
     parser = argparse.ArgumentParser(description="Capture screenshots of Terminal UI examples")
-    parser.add_argument("--pattern", default="example_*.py", help="Glob pattern for scripts")
+    parser.add_argument("--pattern", default="examples/**/*.py", help="Glob pattern for scripts")
     parser.add_argument("--test", action="store_true", help="Run only the first found script for testing")
     args = parser.parse_args()
 
@@ -105,7 +105,7 @@ def main():
         os.makedirs("screenshots")
         print("Created screenshots/ directory")
 
-    files = sorted(glob.glob(args.pattern))
+    files = sorted(glob.glob(args.pattern, recursive=True))
     
     if not files:
         print("No files found matching pattern.")
