@@ -7,6 +7,8 @@ from rich.text import Text
 from rich.table import Table
 from rich.columns import Columns
 
+import os
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 import scanner_sim as sim
 
 def create_card(result: sim.EndpointResult) -> Panel:
